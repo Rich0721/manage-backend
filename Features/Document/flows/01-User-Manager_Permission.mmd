@@ -1,0 +1,14 @@
+flowchart TD
+
+    %% Nodes
+        StartPoint(更新權限流程開始)
+        EndPoint(更新權限流程結束)
+        GetUsersInformation(取得使用者資訊)
+        ReceiveInformation(接收使用者資訊)
+        UpdatePermission(更新使用者權限)
+
+    %% Flow
+    StartPoint --> GetUsersInformation
+    GetUsersInformation --> ReceiveInformation
+    ReceiveInformation --> UpdatePermission
+    UpdatePermission --> EndPoint

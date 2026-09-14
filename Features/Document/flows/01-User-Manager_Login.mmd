@@ -1,0 +1,22 @@
+flowchart TD
+
+    %% Nodes
+        StartPoint(登入流程開始)
+        EndPoint(登入流程結束)
+        ReceiveInformation(接收使用者資訊)
+        ValidateInformation{驗證使用者資訊}
+        ProduceTempNumber(產生臨時編號)
+        ReturnTempNumber(回傳臨時編號)
+        ReceiveTempNumber(接收臨時編號)
+        ValidateTempNumber{驗證臨時編號}
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| ProduceTempNumber
+    ProduceTempNumber --> ReturnTempNumber
+    ReturnTempNumber --> ReceiveTempNumber
+    ReceiveTempNumber --> ValidateTempNumber
+    ValidateInformation --> |資訊驗證失敗| EndPoint
+    ValidateTempNumber --> |臨時編號驗證通過| EndPoint
+    ValidateTempNumber --> |臨時編號驗證失敗| EndPoint

@@ -1,0 +1,17 @@
+flowchart TD
+
+    %% Nodes
+        StartPoint(註冊流程開始)
+        EndPoint(註冊流程結束)
+        ReceiveInformation(接收使用者資訊)
+        ValidateInformation{驗證使用者資訊}
+        ProduceUserCoding(產生使用者編碼)
+        SaveInformation(儲存使用者資訊)
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| ProduceUserCoding
+    ProduceUserCoding --> SaveInformation
+    ValidateInformation --> |資訊驗證失敗| EndPoint
+    SaveInformation --> EndPoint
