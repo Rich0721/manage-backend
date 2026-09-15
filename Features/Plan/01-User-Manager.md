@@ -20,11 +20,17 @@ Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與�
 
 ## II. Requirement Summary
 
-1. 註冊驗證 Email 格式、確認密碼與 Email 唯一性，以 Email 的 SHA-256雜湊產生 uid，並以 SHA-256 雜湊密碼後建立預設 `user` 角色帳號。
-2. 第一階段登入驗證 Email 與密碼；失敗超過五次鎖定 15 分鐘。成功時將臨時編號以三分鐘 Redis TTL 儲存，並透過 SMTP 寄送指定 Email 樣板。
-3. 第二階段驗證臨時編號；錯誤超過五次鎖定五分鐘。
+1. 註冊驗證 Email 格式、確認密碼與 Email 唯一性，以 Email 的 SHA-256
+   雜湊產生 uid，儲存 user_name 與前端 SHA-256 雜湊後的密碼，並建立預設
+   `user` 角色帳號。
+2. 第一階段登入驗證 Email 與前端 SHA-256 雜湊後的密碼；成功時將隨機
+   六位英數 Temporary Code 以 Email 為 Redis key 儲存三分鐘，覆蓋舊碼，
+   並透過 SMTP 寄送指定 Email 樣板。
+3. 第二階段以 Email 與 Temporary Code 驗證登入。
 4. 保留登出接口，不實作未定義的登出行為。
-5. `admin` 可列出所有使用者並管理 `user`、`manager`；`manager` 只能列出及管理目前為 `user` 的帳號；`user` 不可查詢或修改。
+5. `admin` 可列出非 admin 使用者並管理 `user`、`manager`；`manager` 只能
+   列出及管理目前為 `user` 的帳號；`user` 不可查詢或修改；任何 admin
+   帳號不得經此前端 API 查詢或修改。
 6. 所有 PostgreSQL SQL 查詢都必須使用 parameterized query。
 
 ## III. Requirement List
@@ -32,13 +38,13 @@ Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與�
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 | --- | --- | --- | --- | --- | --- | --- |
 | TASK-001 | Backend Foundation and Configuration | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-002 | Users Table DDL | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-003 | User Repository | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-004 | Registration Service and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
-| TASK-005 | First-stage Login Service and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
-| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
-| TASK-007 | Logout API Placeholder | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
-| TASK-008 | User Permission Service and APIs | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-002 | Users Table DDL | MODIFY | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-003 | User Repository | MODIFY | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-004 | Registration Service and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-005 | First-stage Login Service and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-007 | Logout API Placeholder | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-008 | User Permission Service and APIs | ADD | 2026-09-15 | PLAN UPDATED |  |  |
 | TASK-009 | User Management Test Suite | ADD | 2026-09-15 | PLAN UPDATED |  |  |
 | TASK-010 | PostgreSQL and Redis Docker Compose | ADD | 2026-09-15 | PLAN UPDATED |  |  |
 
@@ -93,13 +99,17 @@ FastAPI application
    -> PostgreSQL and Redis using environment-configured host and port
 ```
 
-- Controller/router: parse requests, invoke services, perform authentication hooks, and map domain errors to the PM-approved HTTP error contract.
-- Service: own registration, login, temporary-code, lockout, and role workflow.
+- Controller/router: parse the requirement-defined request envelope, invoke
+   services, apply the confirmed response envelope, and map domain errors to the
+   PM-defined status/message contract.
+- Service: own registration, login, temporary-code, and role workflow.
 - Repository: own only parameterized PostgreSQL query execution and row mapping.
 - Redis adapter: store temporary codes and PM-approved lock state using TTL.
 - SMTP adapter: render and send the requirement-defined temporary-code Email.
 
-The new `TB_USERS` DDL must create the requirement-defined uid primary key, unique Email, SHA-256 password value, restricted permission values, and system-managed `created_at` and `updated_at` fields.
+The `TB_USERS` DDL must create the requirement-defined uid primary key, unique
+Email, non-unique user_name, SHA-256 password value, restricted permission
+values, and system-managed `created_at` and `updated_at` fields.
 
 ## VII. Implementation Steps
 
@@ -135,8 +145,9 @@ Implementation:
    contract enables TASK-004 through TASK-008.
 4. Add SMTP connection and close handling inside the email delivery component
    created by TASK-005; do not create a persistent SMTP dependency.
-5. Add route registration and common domain-error mapping only after the API
-   response and error contract is approved.
+5. Add route registration and common domain-error mapping for the documented
+   methods, paths, JSON header envelope, status codes, and messages. Defer
+   login-required route authorization until TASK-007 and TASK-008 are defined.
 6. Keep credentials out of source control and logs.
 
 Error Handling: Fail clearly for invalid required configuration and log
@@ -153,7 +164,7 @@ Testing: Add configuration and router-registration tests.
 ```text
 File: database/01-DDL/01-TB_USERS.sql (Existing File)
 Target: TB_USERS table definition
-Change Type: Add
+Change Type: Modify
 
 Reuse: The table name and column requirements in 01-User-Manager.md.
 
@@ -161,15 +172,18 @@ Current Behavior: 01-TB_USERS.sql creates TB_USERS with a VARCHAR(64) uid
 primary key, unique email, SHA-256-sized password column, permission check,
 timestamp defaults, and an updated_at trigger.
 
-Expected Behavior: TB_USERS provides uid primary-key, unique Email, three valid
-permission values, default user role, and automatically managed timestamps.
+Expected Behavior: TB_USERS provides uid primary-key, unique Email, non-unique
+user_name, three valid permission values, default user role, and automatically
+managed timestamps.
 
 Implementation:
-1. Preserve the existing column and constraint definitions unless PostgreSQL 17
-   integration validation identifies a compatibility defect.
-2. Apply the DDL to a clean PostgreSQL 17 service.
-3. Verify primary-key, unique Email, permission check, default user role, and
-   database-managed updated_at behavior.
+1. Add a non-null VARCHAR user_name column to the existing DDL. Do not add a
+   uniqueness constraint because the requirement explicitly permits duplicates.
+2. Update an existing local database through a migration approved for its data
+   state; clean-environment validation may apply the revised DDL directly.
+3. Apply the DDL to a clean PostgreSQL 17 service.
+4. Verify primary-key, unique Email, non-unique user_name, permission check,
+   default user role, and database-managed updated_at behavior.
 
 Error Handling: Preserve unique-constraint failures so the service can map them
 to a duplicate-Email domain error.
@@ -185,23 +199,30 @@ Testing: Add database integration tests for constraints and timestamps.
 ```text
 File: src/repositories/user_repository.py (Existing File)
 Target: UserRepository
-Change Type: Add
+Change Type: Modify
 
 Reuse: TB_USERS DDL, User, StoredUser, and DuplicateEmailError already exist.
 
 Current Behavior: UserRepository implements get_by_email(), get_by_uid(),
 create(), list_all(), list_by_permission(), and update_permission() using
-asyncpg positional parameters. Public response objects exclude password.
+asyncpg positional parameters, but its queries and objects do not include the
+newly required user_name field. Public response objects exclude password.
 
-Expected Behavior: Services can get users by Email and uid, create users, list
-users by role scope, and update permission without raw request-value SQL.
+Expected Behavior: Services can get users by Email and uid, create users with
+user_name, list users by role scope, and update permission without raw
+request-value SQL.
 
 Implementation:
-1. Retain the existing operations and parameter binding.
-2. Verify each query against PostgreSQL using the TASK-002 schema.
-3. Verify the result mapping excludes password from User list and update
+1. Extend User and StoredUser with user_name and update every SELECT, INSERT,
+   RETURNING clause, and row mapper in UserRepository to include it.
+2. Extend create() to accept user_name; retain asyncpg positional parameter
+   binding for every query value.
+3. Add a repository query for admin listings that excludes permission=admin and
+   the operator uid. Extend manager listings to exclude the operator uid.
+4. Verify each query against PostgreSQL using the TASK-002 schema.
+5. Verify the result mapping excludes password from User list and update
    results, while StoredUser remains restricted to authentication services.
-4. Confirm unique email conflicts map to DuplicateEmailError and document any
+6. Confirm unique email conflicts map to DuplicateEmailError and document any
    unexpected database error behavior found by integration tests.
 
 Error Handling: Repository must not create HTTP responses; it logs and propagates
@@ -227,18 +248,22 @@ Reuse: UserRepository.get_by_email() and UserRepository.create().
 
 Current Behavior: No registration workflow exists.
 
-Expected Behavior: Valid Email, Password, ConfirmPassword input creates one
-TB_USERS record with Email-derived SHA-256 uid, SHA-256 password, and user role.
+Expected Behavior: POST /userController/register accepts the documented JSON
+header/body envelope and creates one TB_USERS record with Email-derived
+SHA-256 uid, userName, the client-supplied SHA-256 password value, and user
+role.
 
 Implementation:
-1. Define the registration request schema with Email, Password, ConfirmPassword.
+1. Define the POST /userController/register request and response envelopes with
+   email, userName, password, and confirmPassword in body.
 2. Validate Email format and password-confirmation equality.
 3. Use get_by_email before creation and reject existing Email.
-4. Generate uid from Email SHA-256 and hash the password with requirement-
-   specified SHA-256.
-5. Persist the account through the repository with default user permission.
-6. Map invalid Email, duplicate Email, and mismatch errors to the approved API
-   error contract.
+4. Generate uid from Email SHA-256 and persist the client-supplied SHA-256
+   password value without a second server hash.
+5. Persist the account and userName through the repository with default user
+   permission.
+6. Map success to 200 Success/User registered successfully. Map all documented
+   registration failures to 401 Failed/User registration failed.
 
 Error Handling: Map database uniqueness races to duplicate Email; never log
 plaintext passwords.
@@ -270,30 +295,34 @@ Change Type: Add
 
 Reuse: UserRepository.get_by_email() and configuration from TASK-001.
 
-Current Behavior: No login, Redis, lockout, or SMTP implementation exists.
+Current Behavior: No login, Redis, or SMTP implementation exists.
 
-Expected Behavior: Valid registered credentials cause temporary-code creation,
-three-minute Redis storage, and delivery of the required Email; unknown Email
-and wrong password produce the same login-failure response.
+Expected Behavior: POST /userController/login accepts both documented login
+body variants. Valid registered credentials create a random six-character
+alphanumeric Temporary Code, overwrite the Redis value keyed by Email with a
+three-minute TTL, and deliver the required Email. Unknown Email and wrong
+password produce the same login-failure response.
 
 Implementation:
-1. Validate Email format and check the confirmed credential lock state.
+1. Route the first-stage request by its body fields: email plus password; route
+   the second-stage request by email plus temporary_code.
 2. Retrieve the user and compare the SHA-256 hash of supplied password to stored
    password.
-3. On failure, increment the confirmed counter and apply a 15-minute lock after
-   more than five failures.
-4. On success, generate a temporary code, write it with a 3-minute Redis TTL,
-   and send the specified subject and body through SMTP.
-5. Do not expose temporary codes or plaintext passwords in responses or logs.
+3. On credential failure return the documented 401 Failed login response;
+   do not add lockout counters because the updated requirement removed them.
+4. On success, generate a random six-character alphanumeric code, replace the
+   Email-scoped Redis value with a three-minute TTL, and send the specified
+   subject and body through SMTP.
+5. Do not expose Temporary Codes or password hashes in responses or logs.
 
 Error Handling: Do not return success when Redis storage or SMTP delivery fails;
 log database, Redis, and SMTP failures without secret values.
 
-Validation: Verify valid, wrong-password, unregistered-Email, lockout, TTL, and
-Email-template behavior.
+Validation: Verify valid, wrong-password, unregistered-Email, resend-replaces-
+code, TTL, and Email-template behavior.
 
-Testing: Mock repository, Redis, and SMTP in service tests; add Redis TTL and
-rendered-Email integration tests.
+Testing: Mock repository, Redis, and SMTP in service tests; add Redis TTL,
+overwrite, and rendered-Email integration tests.
 ```
 
 ### TASK-006 Temporary-code Verification and API
@@ -311,25 +340,24 @@ Reuse: Redis temporary-code adapter from TASK-005.
 
 Current Behavior: No second-stage login workflow exists.
 
-Expected Behavior: A valid, unexpired temporary code completes login; invalid
-codes return a temporary-code error, and more than five failures lock for five
-minutes.
+Expected Behavior: A valid, unexpired Email-scoped Temporary Code completes
+login; invalid or expired codes return the documented verification-failed
+response. The response body is empty as defined by the requirement.
 
 Implementation:
-1. Accept TempNumber plus the PM-confirmed user or transaction correlation data.
-2. Check the temporary-code lock state before comparison.
-3. Read the scoped Redis value and retain the three-minute TTL behavior.
-4. Increment failed-code count and apply the five-minute lock at the confirmed
-   threshold.
-5. On valid code, consume the code and issue the PM-confirmed authenticated
-   state or credential.
+1. Accept email and temporary_code in the documented request body.
+2. Read the Email-scoped Redis value and retain the three-minute TTL behavior.
+3. Compare the supplied code to the stored value and return the documented
+   200 Success or 401 Failed status/message.
+4. Do not add failure counters, lockouts, single-use deletion, or a new
+   credential because the updated requirement does not define those behaviors.
 
 Error Handling: Redis failures must never become successful authentication.
 
-Validation: Verify Gherkin valid/invalid cases, expiry, lockout, and confirmed
-single-use semantics.
+Validation: Verify Gherkin valid/invalid cases, Email correlation, expiry, and
+resend replacement behavior.
 
-Testing: Add service/controller tests for valid, wrong, expired, locked, and
+Testing: Add service/controller tests for valid, wrong, expired, replaced, and
 storage-failure cases.
 ```
 
@@ -344,11 +372,16 @@ Reuse: Router registration from TASK-001.
 
 Current Behavior: No logout interface exists.
 
-Expected Behavior: A logout interface exists without inventing token revocation,
-session deletion, or other unapproved behavior.
+Expected Behavior: POST /userController/logout accepts email in the documented
+JSON header/body envelope and returns the documented 200 success envelope
+without inventing token revocation, session deletion, or other behavior.
 
-Implementation: Register the PM-confirmed endpoint and implement only approved
-placeholder semantics after the authentication contract is defined.
+Implementation:
+1. Require header.uid and use UserRepository.get_by_uid() to confirm that the
+   current operator exists before returning the documented placeholder success
+   contract.
+2. Do not add token revocation, session deletion, or other logout state because
+   the requirement does not define those behaviors.
 
 Error Handling: Use the PM-confirmed response contract.
 
@@ -368,31 +401,37 @@ File: src/controllers/user_permission_controller.py (New File)
 Target: list and update handlers and schemas
 Change Type: Add
 
-Reuse: UserRepository methods from TASK-003 and authenticated user context from
-TASK-006.
+Reuse: UserRepository methods from TASK-003 and JSON header parsing from the
+controllers created in TASK-004 through TASK-006.
 
-Current Behavior: No authenticated context, user list, or permission update
-workflow exists.
+Current Behavior: No header.uid-based operator lookup, user list, or permission
+update workflow exists.
 
-Expected Behavior: Enforce the role matrix in the requirement. admin lists all
-and changes user/manager to user/manager. manager lists user only and changes a
-user to user/manager. user is denied. Admin-to-admin remains unresolved.
+Expected Behavior: Enforce the role matrix in the requirement. admin lists only
+non-admin users and changes user/manager to user/manager. manager lists user
+only and changes a user to user/manager. user is denied. Every admin target,
+including the current operator, is excluded from listing and denied for update.
 
 Implementation:
-1. Obtain operator identity and role from the confirmed authentication mechanism.
-2. Use list_all for admin, list_by_permission(user) for manager, and deny user.
+1. Read the operator uid from the JSON header envelope and load the current
+   role from TB_USERS. Reject the request when header.uid is missing or does
+   not identify a stored user. Do not authorize from client-provided Permission.
+2. Use the TASK-003 repository operation that excludes non-admin users and the
+   operator for admin; use the manager user-only listing excluding the operator;
+   deny user.
 3. Validate requested role before loading the target user.
 4. Enforce the complete operator/current-role/target-role matrix before update.
-5. Do not implement admin-to-admin modification until PM decides its behavior.
+5. Deny every admin target update, as required.
 6. Exclude password values from all list and update responses.
 
-Error Handling: Return authorization denial for forbidden actions and a distinct
-domain error for a missing target user.
+Error Handling: Return the documented 401 Failed/Unauthorized response for a
+forbidden action or a missing target user.
 
 Validation: Execute every permission Gherkin scenario plus missing-target and
 invalid-requested-role cases.
 
-Testing: Add service matrix tests and controller authentication/response tests.
+Testing: Add service matrix tests and controller tests for missing, unknown,
+and valid header.uid values plus response contracts.
 ```
 
 ### TASK-009 User Management Test Suite
@@ -428,11 +467,12 @@ Expected Behavior: Tests cover every Gherkin scenario and technical requirement.
 
 Implementation:
 1. Translate all registration, login, temporary-code, listing, and role-update
-   scenarios to automated tests.
-2. Add threshold tests for credential/code failures and TTL tests for all locks
-   and temporary codes.
+   scenarios to automated tests, including the required header.uid account
+   lookup for logout and permission operations.
+2. Add TTL and replacement tests for Temporary Codes; do not add lockout tests
+   because the updated requirement no longer specifies lockout behavior.
 3. Run PostgreSQL and Redis integration tests against TASK-010 Docker Compose
-   services, including DDL constraints and parameterized query operations.
+   services, including user_name DDL constraints and parameterized queries.
 4. Assert rendered SMTP subject/body without external Email delivery.
 5. Assert that passwords and temporary codes never appear in logs or user lists.
 
@@ -487,31 +527,17 @@ Testing: Add or update integration-test fixtures to read the same environment
 contract and skip with a clear reason when Docker services are unavailable.
 ```
 
-## VIII. PM Clarification Required
+## VIII. Security Follow-up
 
-TASK-004 to TASK-008 cannot be implemented until PM provides the following
-requirement information. These are not design assumptions:
+PM confirms that current functionality may use JSON header.uid to look up the
+operator in TB_USERS. All routes except register and login must reject missing
+or unknown UIDs. Authorization must use the role loaded from TB_USERS and must
+ignore client-provided Permission. This is an interim functional rule, not a
+claim that UID proves a non-forgeable authenticated session.
 
-1. Each endpoint's path, request body, success body, HTTP status, and common
-   error response format. The HTTP methods are confirmed: registration,
-   first-stage login, second-stage verification, logout, and user listing use
-   POST; permission update uses PUT.
-2. The first-stage result that identifies a second-stage temporary-code attempt,
-   and the matching field required by the second-stage request.
-3. The authentication state issued after a valid temporary code, including its
-   transport, expiry, validation method, and the logout placeholder response.
-4. Temporary-code length, generation requirement, resend behavior, one-time
-   use behavior, Redis key scope, and code failure counter scope/reset policy.
-5. Credential failure counter scope/reset policy and confirmation of whether
-   the sixth failed attempt applies the "超過五次" lock.
-6. The admin-to-admin permission update behavior.
-7. The initial admin-account provisioning mechanism required to operate the
-   role-management feature.
-
-The existing PostgreSQL, Redis, SMTP, and dependency configuration resolves the
-former connection and dependency selection question. The plan retains SHA-256
-because it is an explicit PM technical requirement; any security change must be
-approved as a requirement change.
+UID and Permission forgery prevention, server-side session state, expiry, and
+token revocation remain deferred security improvements. They are outside this
+plan and require a future PM requirement change before implementation.
 
 ## IX. Plan Validation
 
@@ -522,16 +548,18 @@ approved as a requirement change.
 - [x] Every requirement has a corresponding implementation task.
 - [x] Database, configuration, integration, validation, logging, error,
   compatibility, and test impacts are recorded.
-- [ ] API contract and authenticated-state impacts are defined by PM.
+- [x] API request, response, status, and JSON header-envelope contracts are
+   defined for all feature tasks.
+- [x] Registration Gherkin scenarios match the latest request contract.
 - [x] No production code, test code, or unconfirmed business rule is added.
-- [ ] PM has resolved the endpoint and authentication requirements that block
-   TASK-004 through TASK-008.
-- [ ] Updated implementation plan has completed human review.
+- [x] PM approved interim header.uid account lookup for logout and permission
+   operations; database-loaded roles are used for authorization.
+- [x] Updated implementation plan has completed human review.
 
 ## X. Review Status
 
-- [ ] Implementation Plan 已完成人工審核
+- [x] Implementation Plan 已完成人工審核
 - [ ] Development 完成
 - [ ] Code Review 通過
 
-Plan Status: Awaiting PM Clarification and Review
+Plan Status: Awaiting Review
