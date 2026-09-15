@@ -114,6 +114,248 @@ Code Review Agent
 
 不得因 Local Branch 已存在而直接強制覆蓋 Remote Branch。
 
+## Default Branch Workflow
+
+如果專案的 `instructions/` 或目前 Agent Workflow 沒有特別定義 Git Branch 操作流程，則必須遵循本節的預設流程。
+
+此流程適用於：
+
+- System Design
+- Development
+- Code Review
+- Requirement Change
+- Bug Fix
+- Plan Update
+- Review Fix
+
+Branch 應依照目前 Requirement、Feature、Bug 或 Task 建立與使用。
+
+建議命名：
+
+```text
+feature/<feature-name>
+bugfix/<feature-name>
+```
+
+需要以 Task 區分時：
+
+```text
+feature/<feature-name>/<task-id>
+bugfix/<feature-name>/<task-id>
+```
+
+### I. Branch Preparation
+
+開始任何 Git-managed 工作前：
+
+1. 確認目前 Requirement、Feature、Bug 或 Task 對應的 Branch Name。
+2. 執行 `git fetch`，取得 Remote Repository 最新狀態。
+3. 確認 Remote Repository 是否已存在對應 Branch。
+
+接著依 Branch 是否存在執行不同流程。
+
+### II. Remote Branch 不存在
+
+如果 Remote Repository 尚未存在對應 Branch：
+
+1. 切換至 `main`。
+2. 同步 Remote `main` 最新版本。
+3. 確認 Local `main` 已與 Remote `main` 保持一致。
+4. 從最新 `main` 建立對應 Feature / Bugfix Branch。
+5. 切換至新建立的 Branch。
+6. Push Branch 至 Remote Repository。
+7. 開始目前 Agent 的工作。
+
+流程：
+
+```text
+Fetch Remote
+    ↓
+Checkout main
+    ↓
+Pull Remote main
+    ↓
+Create Feature / Bugfix Branch
+    ↓
+Push Remote Branch
+    ↓
+Start Work
+```
+
+不得從過期的 Local `main` 建立新 Branch。
+
+### III. Remote Branch 已存在
+
+如果 Remote Repository 已存在對應 Branch：
+
+1. 執行 `git fetch`。
+2. 切換至對應 Feature / Bugfix Branch。
+3. Pull 對應 Remote Branch 最新內容。
+4. 確認 Local Branch 已包含其他 Agent 或 Developer 最新 Push 的內容。
+5. 同步 Remote `main` 最新版本。
+6. 將最新 `main` 的變更整合至目前 Feature / Bugfix Branch。
+7. 如果發生 Conflict，依本 Skill 的 Conflict Handling 規範處理。
+8. 完成同步後才開始目前 Agent 的工作。
+
+流程：
+
+```text
+Fetch Remote
+    ↓
+Checkout Existing Feature / Bugfix Branch
+    ↓
+Pull Remote Feature / Bugfix Branch
+    ↓
+Update main
+    ↓
+Integrate Latest main Into Current Branch
+    ↓
+Resolve Conflict If Required
+    ↓
+Start Work
+```
+
+不得只同步 Feature Branch 而忽略最新 `main`。
+
+不得只同步 `main` 而忽略其他 Agent 已 Push 至 Feature Branch 的工作內容。
+
+### IV. Integrate Main
+
+將最新 `main` 整合至目前 Feature / Bugfix Branch 時：
+
+1. 應優先遵循 `instructions/` 定義的 Merge Strategy。
+2. 如果 `instructions/` 沒有定義，依 Repository 現有 Git Convention 選擇適當方式。
+3. 可以使用：
+   - Merge
+   - Rebase
+4. 不得為了同步 `main` 而 Rewrite 已共享的 Remote History。
+5. 不得使用 Force Push 作為一般同步方式。
+
+本 Skill 不強制所有專案使用相同的 Merge Strategy。
+
+### V. Before Commit
+
+目前 Agent 完成工作或需要保存工作狀態時：
+
+1. 使用 Git Skill 檢查 Git 狀態。
+2. 確認目前位於正確的 Feature / Bugfix Branch。
+3. 再次確認 Remote Branch 是否存在新的變更。
+4. 必要時先同步 Remote Branch。
+5. 確認 Commit 僅包含目前相關 Task 或 Logical Change。
+6. 確認需要保存的 Git-managed Artifact 已包含於 Commit。
+
+可能包含：
+
+```text
+Application Code
+Tests
+Implementation Plan
+Implementation Plan Status
+Implementation Issue
+Review Result
+Project Instructions
+```
+
+實際需要保存哪些內容，依目前 Agent Workflow 決定。
+
+### VI. Commit and Push
+
+確認修改內容後：
+
+1. 執行必要的 Test 或 Validation。
+2. Commit。
+3. Push 至目前對應的 Remote Feature / Bugfix Branch。
+
+不得直接將一般 Feature / Bugfix 開發內容 Push 至 `main`。
+
+流程：
+
+```text
+Work Complete
+    ↓
+Check Git Status
+    ↓
+Sync Remote Branch If Required
+    ↓
+Validate Changes
+    ↓
+Commit
+    ↓
+Push Feature / Bugfix Branch
+```
+
+### VII. Existing Branch Is Shared Work
+
+Existing Feature / Bugfix Branch 應視為目前 Requirement 的共享工作空間。
+
+可能依序由：
+
+```text
+System Design Agent
+        ↓
+Python Programmer
+        ↓
+Code Review Agent
+```
+
+或其他 Agent 使用。
+
+因此每個 Agent 開始工作前都必須：
+
+```text
+Fetch
+↓
+Checkout Existing Branch
+↓
+Pull Latest Remote Branch
+↓
+Sync Latest main
+↓
+Start Work
+```
+
+Agent 不得因 Local Repository 已存在同名 Branch，就假設 Local Branch 為最新版本。
+
+### VIII. Agent Workflow Priority
+
+Git Workflow 的優先順序：
+
+```text
+Project instructions/
+        ↓
+Agent-specific Git Workflow
+        ↓
+Git Skill Default Branch Workflow
+```
+
+也就是：
+
+1. 如果 `instructions/` 已明確定義 Git Workflow，必須遵循 `instructions/`。
+2. 如果 Agent 自己有更具體的 Git Workflow，且不與 `instructions/` 衝突，則遵循 Agent Workflow。
+3. 如果以上都沒有定義，必須遵循本節 Default Branch Workflow。
+
+Agent-specific Workflow 可以決定：
+
+```text
+何時開始 Git 操作
+何時建立或更新 Plan
+何時進入 Development
+何時進行 Review
+何時 Handoff
+```
+
+Git Skill 則負責規範：
+
+```text
+如何安全建立與同步 Branch
+如何同步 main
+如何 Pull Remote Branch
+如何 Commit
+如何 Push
+如何避免覆蓋 Shared History
+```
+
+
 ## Commit Guidelines
 
 每次 Commit 應只處理：
@@ -175,7 +417,6 @@ Bug Fix：
 [PLAN] Add user export implementation plan
 ```
 
----
 
 ## Push Guidelines
 
@@ -339,8 +580,6 @@ Commit Unrelated Changes
 Commit Secret / Credential
 Directly Develop on main
 ```
-
----
 
 ## Final Principle
 
