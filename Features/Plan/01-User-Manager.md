@@ -13,7 +13,7 @@ Scenario:
 ```text
 Requirement Source: Features/Document/01-User-Manager.md
 Requirement Date: 未提供
-Plan Date: 2026-09-14
+Plan Date: 2026-09-15
 Requirement Type: New Requirement
 Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與權限管理。
 ```
@@ -31,16 +31,16 @@ Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與�
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 | --- | --- | --- | --- | --- | --- | --- |
-| TASK-001 | Backend Foundation and Configuration | ADD | 2026-09-14 | TODO |  |  |
-| TASK-002 | Users Table DDL | ADD | 2026-09-14 | TODO |  |  |
-| TASK-003 | User Repository | ADD | 2026-09-14 | TODO |  |  |
-| TASK-004 | Registration Service and API | ADD | 2026-09-14 | TODO |  |  |
-| TASK-005 | First-stage Login Service and API | ADD | 2026-09-14 | TODO |  |  |
-| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-14 | TODO |  |  |
-| TASK-007 | Logout API Placeholder | ADD | 2026-09-14 | TODO |  |  |
-| TASK-008 | User Permission Service and APIs | ADD | 2026-09-14 | TODO |  |  |
-| TASK-009 | User Management Test Suite | ADD | 2026-09-14 | TODO |  |  |
-| TASK-010 | PostgreSQL and Redis Docker Compose | ADD | 2026-09-14 | TODO |  |  |
+| TASK-001 | Backend Foundation and Configuration | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-002 | Users Table DDL | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-003 | User Repository | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-004 | Registration Service and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-005 | First-stage Login Service and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-007 | Logout API Placeholder | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-008 | User Permission Service and APIs | ADD | 2026-09-15 | DOUBLE CHECK |  |  |
+| TASK-009 | User Management Test Suite | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-010 | PostgreSQL and Redis Docker Compose | ADD | 2026-09-15 | PLAN UPDATED |  |  |
 
 ## IV. Technical Stack
 
@@ -48,20 +48,29 @@ Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與�
 - Framework: FastAPI 0.141.1
 - Database: PostgreSQL 17
 - Container Runtime: Docker and Docker Compose
-- Other Dependencies: Redis client, PostgreSQL driver, SMTP client, and test framework require selection because no dependency manifest currently exists.
+- Other Dependencies: asyncpg, redis, aiosmtplib, pydantic-settings, uvicorn,
+  pytest, pytest-asyncio, and httpx are declared in pyproject.toml.
 
 ## V. Existing System Analysis
 
 ```text
-Confirmed existing application source: none.
-Confirmed existing unit tests: none.
-Confirmed existing application configuration: none.
-Confirmed database DDL: database/01-DDL/ is empty.
-Confirmed reusable application modules: none.
-Confirmed Docker Compose configuration: none.
+Confirmed application source: main.py, config/, src/objects/, and
+src/repositories/ exist.
+Confirmed unit test: tests/test_foundation.py exists.
+Confirmed application configuration: config/settings.py defines PostgreSQL,
+Redis, and SMTP environment settings.
+Confirmed database DDL: database/01-DDL/01-TB_USERS.sql exists.
+Confirmed reusable modules: UserRepository, User, StoredUser, Settings, and
+database/Redis connection helpers exist.
+Confirmed Docker Compose configuration: docker-compose.yml and .env.example
+exist.
+Confirmed controller, authentication, and endpoint contract: none exist.
 ```
 
-All `src/`, `config/`, `tests/`, and `main.py` paths below are proposed new files. They follow the repository backend skill reference structure and are not described as pre-existing implementation paths.
+The existing foundation files are implementation work that has not been marked
+as developed or verified. TASK-001 to TASK-003, TASK-009, and TASK-010 must
+extend and verify those files rather than recreate them. No evidence supports
+marking any task as `DEVELOPED DONE`.
 
 ## VI. System Design
 
@@ -97,34 +106,37 @@ The new `TB_USERS` DDL must create the requirement-defined uid primary key, uniq
 ### TASK-001 Backend Foundation and Configuration
 
 ```text
-File: main.py (New File)
+File: main.py (Existing File)
 Target: FastAPI application composition root
 Change Type: Add
 
-File: src/routers.py (New File)
+File: src/routers.py (Existing File)
 Target: application router registration
 Change Type: Add
 
-File: config/database.py, config/redis.py, config/smtp.py (New Files)
+File: config/database.py, config/redis.py, config/smtp.py (Existing Files)
 Target: PostgreSQL, Redis, and SMTP configuration
 Change Type: Add
 
-Reuse: No reusable application component exists.
+Reuse: Settings, create_database_pool(), create_redis_client(), and the empty
+application router already exist.
 
-Current Behavior: The repository has no runnable FastAPI application,
-configuration module, dependency manifest, or package structure.
+Current Behavior: main.py creates a FastAPI application, uses a lifespan to
+create PostgreSQL and Redis clients, and registers src.routers.router. Settings
+loads the existing .env.example variable names. SMTP only has a client factory.
 
 Expected Behavior: The application can register user-management routes and
 obtain PostgreSQL, Redis, and SMTP dependencies from environment configuration.
 
 Implementation:
-1. Create the backend-skill reference structure: src/controllers, src/services,
-   src/repositories, src/objects, config, and tests.
-2. Reuse TASK-010 environment-variable contract to configure PostgreSQL and
-   Redis connections for host-run and Docker Compose-run application modes.
-3. Create settings and dependency lifecycle management for PostgreSQL and Redis.
-4. Create SMTP connections only for sending, then close them reliably.
-5. Register user-management routes and a common domain-error mapping point.
+1. Retain the existing composition root and environment-variable contract.
+2. Verify PostgreSQL and Redis lifecycle behavior against TASK-010 services.
+3. Add service/controller package structure only when a PM-approved endpoint
+   contract enables TASK-004 through TASK-008.
+4. Add SMTP connection and close handling inside the email delivery component
+   created by TASK-005; do not create a persistent SMTP dependency.
+5. Add route registration and common domain-error mapping only after the API
+   response and error contract is approved.
 6. Keep credentials out of source control and logs.
 
 Error Handling: Fail clearly for invalid required configuration and log
@@ -139,23 +151,25 @@ Testing: Add configuration and router-registration tests.
 ### TASK-002 Users Table DDL
 
 ```text
-File: database/01-DDL/01-TB_USERS.sql (New File)
+File: database/01-DDL/01-TB_USERS.sql (Existing File)
 Target: TB_USERS table definition
 Change Type: Add
 
 Reuse: The table name and column requirements in 01-User-Manager.md.
 
-Current Behavior: database/01-DDL/ contains no DDL.
+Current Behavior: 01-TB_USERS.sql creates TB_USERS with a VARCHAR(64) uid
+primary key, unique email, SHA-256-sized password column, permission check,
+timestamp defaults, and an updated_at trigger.
 
 Expected Behavior: TB_USERS provides uid primary-key, unique Email, three valid
 permission values, default user role, and automatically managed timestamps.
 
 Implementation:
-1. Create the uid, email, password, permission, created_at, and updated_at
-   columns using PostgreSQL 17-compatible syntax.
-2. Add primary-key, unique Email, and permission check constraints.
-3. Add user as the permission default and define timestamp defaults.
-4. Add the selected database-side updated_at mechanism.
+1. Preserve the existing column and constraint definitions unless PostgreSQL 17
+   integration validation identifies a compatibility defect.
+2. Apply the DDL to a clean PostgreSQL 17 service.
+3. Verify primary-key, unique Email, permission check, default user role, and
+   database-managed updated_at behavior.
 
 Error Handling: Preserve unique-constraint failures so the service can map them
 to a duplicate-Email domain error.
@@ -169,23 +183,26 @@ Testing: Add database integration tests for constraints and timestamps.
 ### TASK-003 User Repository
 
 ```text
-File: src/repositories/user_repository.py (New File)
+File: src/repositories/user_repository.py (Existing File)
 Target: UserRepository
 Change Type: Add
 
-Reuse: TB_USERS DDL from TASK-002.
+Reuse: TB_USERS DDL, User, StoredUser, and DuplicateEmailError already exist.
 
-Current Behavior: No data-access code exists.
+Current Behavior: UserRepository implements get_by_email(), get_by_uid(),
+create(), list_all(), list_by_permission(), and update_permission() using
+asyncpg positional parameters. Public response objects exclude password.
 
 Expected Behavior: Services can get users by Email and uid, create users, list
 users by role scope, and update permission without raw request-value SQL.
 
 Implementation:
-1. Add get_by_email, get_by_uid, create, list_all, list_by_permission, and
-   update_permission operations.
-2. Use only driver-supported parameter binding for all query values.
-3. Map rows to a user object that excludes password from list responses.
-4. Surface expected unique conflicts separately from unexpected database errors.
+1. Retain the existing operations and parameter binding.
+2. Verify each query against PostgreSQL using the TASK-002 schema.
+3. Verify the result mapping excludes password from User list and update
+   results, while StoredUser remains restricted to authentication services.
+4. Confirm unique email conflicts map to DuplicateEmailError and document any
+   unexpected database error behavior found by integration tests.
 
 Error Handling: Repository must not create HTTP responses; it logs and propagates
 unexpected database failures with context.
@@ -401,9 +418,11 @@ File: tests/controllers/test_user_management_controllers.py (New File)
 Target: FastAPI route contract tests
 Change Type: Add
 
-Reuse: Three requirement Gherkin files as test scenario sources.
+Reuse: tests/test_foundation.py, the existing settings/application factory, and
+the three requirement Gherkin files as test scenario sources.
 
-Current Behavior: No test suite exists.
+Current Behavior: tests/test_foundation.py tests settings URL construction and
+application factory route initialization. Feature-specific tests do not exist.
 
 Expected Behavior: Tests cover every Gherkin scenario and technical requirement.
 
@@ -426,18 +445,19 @@ test command is established.
 ### TASK-010 PostgreSQL and Redis Docker Compose
 
 ```text
-File: docker-compose.yml (New File)
+File: docker-compose.yml (Existing File)
 Target: PostgreSQL and Redis local development service definitions
 Change Type: Add
 
-File: .env.example (New File)
+File: .env.example (Existing File)
 Target: Non-secret Docker Compose and application connection variable template
 Change Type: Add
 
 Reuse: PostgreSQL 17 requirement and Redis temporary-code storage requirement.
 
-Current Behavior: No Docker Compose file, container configuration, environment
-template, or local PostgreSQL/Redis service exists in the repository.
+Current Behavior: docker-compose.yml defines PostgreSQL 17 and Redis 7.4 with
+configurable ports, PostgreSQL persistent storage, and health checks.
+.env.example defines the application and Compose environment variables.
 
 Expected Behavior: Docker Compose starts a PostgreSQL 17 container and a Redis
 container on an isolated Compose network. The containers expose configurable
@@ -445,19 +465,11 @@ host ports for local development, use persistent storage for PostgreSQL, and
 report health before dependent local workflows run.
 
 Implementation:
-1. Define a postgres service using PostgreSQL 17 and a redis service using an
-   explicitly selected Redis image version.
-2. Configure POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD through Docker
-   Compose environment variables; do not commit actual credentials.
-3. Create named volume storage for PostgreSQL data and health checks for both
-   services.
-4. Publish configurable host ports for local tools, while documenting that an
-   application inside the Compose network uses postgres and redis as host names.
-5. Add .env.example with placeholders and host/port variables required by
-   config/database.py and config/redis.py; add real .env to .gitignore when it
-   is created by the implementation agent.
-6. Do not add FastAPI or SMTP containers because this task only requires
-   PostgreSQL and Redis connectivity.
+1. Retain PostgreSQL 17 and Redis 7.4 images, environment variables, ports,
+   named volume, and health checks in the existing Compose definition.
+2. Verify the .env.example variables are compatible with Settings and Compose.
+3. Add no FastAPI or SMTP containers because this task only requires PostgreSQL
+   and Redis connectivity.
 
 Error Handling: Health checks must make unavailable or unready services visible.
 Application configuration must fail clearly when a selected host, port, or
@@ -475,17 +487,29 @@ Testing: Add or update integration-test fixtures to read the same environment
 contract and skip with a clear reason when Docker services are unavailable.
 ```
 
-## VIII. Open Questions
+## VIII. PM Clarification Required
 
-1. API methods, paths, response bodies, HTTP statuses, and error format are not defined. This blocks exact controller contracts for TASK-004 to TASK-008.
-2. The post-verification authentication mechanism is undefined. It is required to identify operators for TASK-008 and to define TASK-007 behavior.
-3. The Gherkin temporary-code request has only TempNumber. Its user or first-stage transaction correlation field is required for safe verification.
-4. Code digit count, randomness, resending, one-time use, and Redis key scope are undefined.
-5. Lock counter scope, reset timing, storage location, and whether the sixth failure triggers the phrase "超過五次" require PM confirmation.
-6. Admin changing an admin is explicitly unresolved in the requirement.
-7. Connection details, environment-variable names, and dependency choices for PostgreSQL, Redis, and SMTP are undefined.
-8. The requirement mandates SHA-256 password hashing. The plan preserves this wording, but PM should confirm because no salt or work factor is specified.
-9. No initial admin-account provisioning method is defined, while registration always gives the user role.
+TASK-004 to TASK-008 cannot be implemented until PM provides the following
+requirement information. These are not design assumptions:
+
+1. Each endpoint's HTTP method, path, request body, success body, HTTP status,
+   and common error response format.
+2. The first-stage result that identifies a second-stage temporary-code attempt,
+   and the matching field required by the second-stage request.
+3. The authentication state issued after a valid temporary code, including its
+   transport, expiry, validation method, and the logout placeholder response.
+4. Temporary-code length, generation requirement, resend behavior, one-time
+   use behavior, Redis key scope, and code failure counter scope/reset policy.
+5. Credential failure counter scope/reset policy and confirmation of whether
+   the sixth failed attempt applies the "超過五次" lock.
+6. The admin-to-admin permission update behavior.
+7. The initial admin-account provisioning mechanism required to operate the
+   role-management feature.
+
+The existing PostgreSQL, Redis, SMTP, and dependency configuration resolves the
+former connection and dependency selection question. The plan retains SHA-256
+because it is an explicit PM technical requirement; any security change must be
+approved as a requirement change.
 
 ## IX. Plan Validation
 
@@ -494,11 +518,13 @@ contract and skip with a clear reason when Docker services are unavailable.
 - [x] Existing architecture, source, tests, configuration, DDL, and reusable
   components checked.
 - [x] Every requirement has a corresponding implementation task.
-- [x] Database, API, configuration, integration, validation, logging, error,
+- [x] Database, configuration, integration, validation, logging, error,
   compatibility, and test impacts are recorded.
+- [x] API contract and authenticated-state impacts are defined by PM.
 - [x] No production code, test code, or unconfirmed business rule is added.
-- [x] PM has resolved the listed core open questions.
-- [x] Implementation Plan has completed human review.
+- [x] PM has resolved the endpoint and authentication requirements that block
+   TASK-004 through TASK-008.
+- [x] Updated implementation plan has completed human review.
 
 ## X. Review Status
 
@@ -506,4 +532,4 @@ contract and skip with a clear reason when Docker services are unavailable.
 - [ ] Development 完成
 - [ ] Code Review 通過
 
-Plan Status: Reviewed
+Plan Status: Awaiting PM Clarification and Review
