@@ -738,12 +738,7 @@ Features/Plan/<feature>.md
 
 ## Git Workflow
 
-System Design Agent 開始 Requirement Analysis 或 Programmer Discussion 前：
-
-1. 使用 Git Skill 同步 Remote Repository。
-2. 確認 Feature / Bug Branch。
-3. 使用最新 Requirement、Plan、Issue 與 Project Files。
-
+請根據*Git Skill*的指引同步分支或開立新分支後，再進行完成 Implementation Plan 或更新 Existing Plan。
 完成 Implementation Plan 或更新 Existing Plan 後：
 
 1. Plan Validation。

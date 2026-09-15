@@ -746,21 +746,6 @@ DONE
 
 Git 操作方式依 Git Skill 執行。
 
-基本流程：
-
-1. 使用 Git Skill 檢查 Git 狀態。
-2. 確認 Remote Repository 已同步。
-3. 確認 Commit 僅包含相關 Task 修改。
-4. 確認需要保存的：
-   - Application Code
-   - Tests
-   - Implementation Plan Status
-   - Implementation Issue
-   已包含於 Commit。
-5. Commit。
-6. Push Remote Repository。
-
-
 ### Development Commit
 
 ```text
