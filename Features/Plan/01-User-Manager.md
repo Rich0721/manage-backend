@@ -492,8 +492,10 @@ contract and skip with a clear reason when Docker services are unavailable.
 TASK-004 to TASK-008 cannot be implemented until PM provides the following
 requirement information. These are not design assumptions:
 
-1. Each endpoint's HTTP method, path, request body, success body, HTTP status,
-   and common error response format.
+1. Each endpoint's path, request body, success body, HTTP status, and common
+   error response format. The HTTP methods are confirmed: registration,
+   first-stage login, second-stage verification, logout, and user listing use
+   POST; permission update uses PUT.
 2. The first-stage result that identifies a second-stage temporary-code attempt,
    and the matching field required by the second-stage request.
 3. The authentication state issued after a valid temporary code, including its
@@ -520,15 +522,15 @@ approved as a requirement change.
 - [x] Every requirement has a corresponding implementation task.
 - [x] Database, configuration, integration, validation, logging, error,
   compatibility, and test impacts are recorded.
-- [x] API contract and authenticated-state impacts are defined by PM.
+- [ ] API contract and authenticated-state impacts are defined by PM.
 - [x] No production code, test code, or unconfirmed business rule is added.
-- [x] PM has resolved the endpoint and authentication requirements that block
+- [ ] PM has resolved the endpoint and authentication requirements that block
    TASK-004 through TASK-008.
-- [x] Updated implementation plan has completed human review.
+- [ ] Updated implementation plan has completed human review.
 
 ## X. Review Status
 
-- [x] Implementation Plan 已完成人工審核
+- [ ] Implementation Plan 已完成人工審核
 - [ ] Development 完成
 - [ ] Code Review 通過
 
