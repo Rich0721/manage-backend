@@ -10,7 +10,7 @@
 
 Flow Chat: [使用者註冊流程圖](flows/01-User-Manager_Register.mmd)
 Gherkin: [使用者註冊情境文件](scenarios/01-User-Manager_Register.feature)
-
+METHOD: POST
 
 #### 使用者操作
 使用者於前端填寫註冊表單，包含*Email*、*Password*及*ConfirmPassword*欄位，並提交表單以完成註冊操作。
@@ -28,6 +28,7 @@ Gherkin: [使用者註冊情境文件](scenarios/01-User-Manager_Register.featur
 ### 2-2. 使用者登入
 Flow Chat: [使用者登入流程圖](flows/01-User-Manager_Login.mmd)
 Gherkin: [使用者登入情境文件](scenarios/01-User-Manager_Login.feature)
+METHOD: POST
 #### 2-2-1. 使用者登入
 
 #### 使用者操作
@@ -65,13 +66,17 @@ Gherkin: [使用者登入情境文件](scenarios/01-User-Manager_Login.feature)
 ```
 
 ### 2-3. 使用者登出
+METHOD: POST
 暫未實作，請先保留對應接口即可
 
 ### 2-4. 使用者權限管理
 Flow Chat: [使用者權限管理流程圖](flows/01-User-Manager_Permission.mmd)
 Gherkin: [使用者權限管理情境文件](scenarios/01-User-Manager_Permission.feature)
+拿取使用者資料 METHOD: POST
+更新使用者權限 METHOD: PUT
 
 #### 使用者操作
+
 使用者於前端進入使用者權限管理頁面，系統會顯示所有使用者的資料及其當前角色。
 
 使用者權限管理功能允許系統管理員更新使用者的權限。管理員可以為使用者分配不同的角色
