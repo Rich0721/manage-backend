@@ -37,16 +37,16 @@ Requirement Summary: 新增使用者註冊、兩階段登入、登出接口與�
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 | --- | --- | --- | --- | --- | --- | --- |
-| TASK-001 | Backend Foundation and Configuration | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-002 | Users Table DDL | MODIFY | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-003 | User Repository | MODIFY | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-004 | Registration Service and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-005 | First-stage Login Service and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-007 | Logout API Placeholder | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-008 | User Permission Service and APIs | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-009 | User Management Test Suite | ADD | 2026-09-15 | PLAN UPDATED |  |  |
-| TASK-010 | PostgreSQL and Redis Docker Compose | ADD | 2026-09-15 | PLAN UPDATED |  |  |
+| TASK-001 | Backend Foundation and Configuration | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-002 | Users Table DDL | MODIFY | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-003 | User Repository | MODIFY | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-004 | Registration Service and API | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-005 | First-stage Login Service and API | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-006 | Temporary-code Verification and API | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-007 | Logout API Placeholder | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-008 | User Permission Service and APIs | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-009 | User Management Test Suite | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
+| TASK-010 | PostgreSQL and Redis Docker Compose | ADD | 2026-09-15 | DEVELOPED DONE | 2026-09-15 |  |
 
 ## IV. Technical Stack
 
@@ -73,10 +73,11 @@ exist.
 Confirmed controller, authentication, and endpoint contract: none exist.
 ```
 
-The existing foundation files are implementation work that has not been marked
-as developed or verified. TASK-001 to TASK-003, TASK-009, and TASK-010 must
-extend and verify those files rather than recreate them. No evidence supports
-marking any task as `DEVELOPED DONE`.
+The existing foundation files were extended and verified during development.
+All tasks are now marked `DEVELOPED DONE`; PostgreSQL integration testing was
+explicitly bypassed in the final local regression at PM request, while the
+repository integration test had previously passed through the WSL PostgreSQL
+service using port 5432.
 
 ## VI. System Design
 
@@ -555,11 +556,15 @@ plan and require a future PM requirement change before implementation.
 - [x] PM approved interim header.uid account lookup for logout and permission
    operations; database-loaded roles are used for authorization.
 - [x] Updated implementation plan has completed human review.
+- [x] Focused controller tests and service regression tests pass in `.venv`.
+- [x] PostgreSQL DDL, Redis TTL, and Docker health checks were verified in WSL.
+- [x] PostgreSQL integration test bypass was explicitly approved for the final
+   regression run.
 
 ## X. Review Status
 
 - [x] Implementation Plan 已完成人工審核
-- [ ] Development 完成
+- [x] Development 完成
 - [ ] Code Review 通過
 
-Plan Status: Awaiting Review
+Plan Status: Awaiting Code Review
