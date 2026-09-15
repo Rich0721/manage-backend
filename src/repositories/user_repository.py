@@ -16,7 +16,8 @@ class UserRepository:
     async def get_by_email(self, email: str) -> StoredUser | None:
         row = await self._connection.fetchrow(
             """
-            SELECT uid, email, password, permission, created_at, updated_at
+            SELECT uid, email, user_name, password, permission,
+                   created_at, updated_at
             FROM TB_USERS
             WHERE email = $1
             """,
@@ -27,7 +28,8 @@ class UserRepository:
     async def get_by_uid(self, uid: str) -> StoredUser | None:
         row = await self._connection.fetchrow(
             """
-            SELECT uid, email, password, permission, created_at, updated_at
+            SELECT uid, email, user_name, password, permission,
+                   created_at, updated_at
             FROM TB_USERS
             WHERE uid = $1
             """,
@@ -39,18 +41,23 @@ class UserRepository:
         self,
         uid: str,
         email: str,
+        user_name: str,
         password: str,
         permission: str = "user",
     ) -> User:
         try:
             row = await self._connection.fetchrow(
                 """
-                INSERT INTO TB_USERS (uid, email, password, permission)
-                VALUES ($1, $2, $3, $4)
-                RETURNING uid, email, permission, created_at, updated_at
+                INSERT INTO TB_USERS (
+                    uid, email, user_name, password, permission
+                )
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING uid, email, user_name, permission,
+                          created_at, updated_at
                 """,
                 uid,
                 email,
+                user_name,
                 password,
                 permission,
             )
@@ -62,7 +69,7 @@ class UserRepository:
     async def list_all(self) -> list[User]:
         rows = await self._connection.fetch(
             """
-            SELECT uid, email, permission, created_at, updated_at
+            SELECT uid, email, user_name, permission, created_at, updated_at
             FROM TB_USERS
             ORDER BY email
             """
@@ -72,12 +79,41 @@ class UserRepository:
     async def list_by_permission(self, permission: str) -> list[User]:
         rows = await self._connection.fetch(
             """
-            SELECT uid, email, permission, created_at, updated_at
+            SELECT uid, email, user_name, permission, created_at, updated_at
             FROM TB_USERS
             WHERE permission = $1
             ORDER BY email
             """,
             permission,
+        )
+        return [self._to_user(row) for row in rows]
+
+    async def list_non_admin_excluding_uid(self, uid: str) -> list[User]:
+        rows = await self._connection.fetch(
+            """
+            SELECT uid, email, user_name, permission, created_at, updated_at
+            FROM TB_USERS
+            WHERE permission <> 'admin' AND uid <> $1
+            ORDER BY email
+            """,
+            uid,
+        )
+        return [self._to_user(row) for row in rows]
+
+    async def list_by_permission_excluding_uid(
+        self,
+        permission: str,
+        uid: str,
+    ) -> list[User]:
+        rows = await self._connection.fetch(
+            """
+            SELECT uid, email, user_name, permission, created_at, updated_at
+            FROM TB_USERS
+            WHERE permission = $1 AND uid <> $2
+            ORDER BY email
+            """,
+            permission,
+            uid,
         )
         return [self._to_user(row) for row in rows]
 
@@ -87,7 +123,8 @@ class UserRepository:
             UPDATE TB_USERS
             SET permission = $1
             WHERE uid = $2
-            RETURNING uid, email, permission, created_at, updated_at
+            RETURNING uid, email, user_name, permission,
+                      created_at, updated_at
             """,
             permission,
             uid,
@@ -99,9 +136,10 @@ class UserRepository:
         return User(
             uid=row[0],
             email=row[1],
-            permission=row[2],
-            created_at=row[3],
-            updated_at=row[4],
+            user_name=row[2],
+            permission=row[3],
+            created_at=row[4],
+            updated_at=row[5],
         )
 
     @staticmethod
@@ -109,8 +147,9 @@ class UserRepository:
         return StoredUser(
             uid=row[0],
             email=row[1],
-            password=row[2],
-            permission=row[3],
-            created_at=row[4],
-            updated_at=row[5],
+            user_name=row[2],
+            password=row[3],
+            permission=row[4],
+            created_at=row[5],
+            updated_at=row[6],
         )

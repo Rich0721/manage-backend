@@ -6,6 +6,7 @@ from datetime import datetime
 class User:
     uid: str
     email: str
+    user_name: str
     permission: str
     created_at: datetime
     updated_at: datetime
