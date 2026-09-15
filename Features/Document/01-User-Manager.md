@@ -18,11 +18,8 @@ uri: /userController/register
 
 | Status Code | Status| Message | 條件|
 | --- | --- | --- | --- |
-| 200 | Success | User registered successfully | 當使用者註冊成功時 |
-| 200 | Failed | User registration failed | 當使用者註冊失敗時 |
-| 400 | Failed | Bad request | 當請求參數不正確時 |
-| 404 | Failed | Not found | 當資源未找到時 |
-| 500 | Failed | Internal server error | 當伺服器內部錯誤時 |
+| 200 | Success | User registered successfully | 當後端成功處理使用者註冊請求 |
+| 401 | Failed | User registration failed | 當後端處理使用者註冊有錯誤情境發生時 |
 
 
 #### Request Body
@@ -34,6 +31,7 @@ uri: /userController/register
     },
     "body":{
         "email": "user@example.com",
+        "userName": "example_user",
         "password": "SHA-256-hashed-password",
         "confirmPassword": "SHA-256-hashed-password"
     }
@@ -80,15 +78,10 @@ uri: /userController/login
 
 | Status Code | Status| Message | 條件|
 | --- | --- | --- | --- |
-| 200 | Success | User logged in successfully, Temporary code has been sent to your email | 當使用者第一階段登入成功時 |
-| 200 | Success | User logged in successfully | 當使用者第二階段登入成功時 |
-| 200 | Failed | User login failed | 當使用者第一階段登入失敗時 |
-| 200 | Failed | Temporary code verification failed | 當使用者第二階段登入失敗時 |
-| 400 | Failed | Bad request | 當請求參數不正確時 |
-| 401 | Failed | Unauthorized | 當使用者未授權時 |
-| 403 | Failed | Forbidden | 當使用者被禁止訪問時 |
-| 404 | Failed | Not found | 當資源未找到時 |
-| 500 | Failed | Internal server error | 當伺服器內部錯誤時 |
+| 200 | Success | User logged in successfully, Temporary code has been sent to your email | 當後端確認為正確的Email及Password完成第一階段登入 |
+| 200 | Success | User logged in successfully | 當後端確認為正確的Email及Temporary Code完成第二階段登入 |
+| 401 | Failed | User login failed | 當後端確認為錯誤的Email或Password完成第一階段登入失敗|
+| 401 | Failed | Temporary code verification failed | 當後端確認為錯誤的Temporary Code完成第二階段登入失敗 |
 
 #### Request Body I
 
@@ -163,6 +156,7 @@ uri: /userController/login
 - Temporary Code需在3分鐘內有效
 - Temporary Code須可以重新生成，但須要移除舊的Temporary Code
 - *Password*會由前端經過SHA-256演算法進行哈希處理後再傳送至後端
+- 使用者登入後，除了*register*和*login*接口外，其他操作皆需驗證使用者的登入狀態，目前先透過header的Uid確認是否有登入，如果沒有登入則拒絕訪問
 
 #### Technical Requirements
 - Temporary Code 儲存於 Redis
@@ -198,11 +192,6 @@ uri: /userController/logout
 | Status Code | Status| Message | 條件|
 | --- | --- | --- | --- |
 | 200 | Success | User logged out successfully | 當使用者登出成功時 |
-| 400 | Failed | Bad request | 當請求參數不正確時 |
-| 401 | Failed | Unauthorized | 當使用者未授權時 |
-| 403 | Failed | Forbidden | 當使用者被禁止訪問時 |
-| 404 | Failed | Not found | 當資源未找到時 |
-| 500 | Failed | Internal server error | 當伺服器內部錯誤時 |
 
 #### Request Body
 
@@ -238,38 +227,30 @@ Flow Chat: [使用者權限管理流程圖](flows/01-User-Manager_Permission.mmd
 Gherkin: [使用者權限管理情境文件](scenarios/01-User-Manager_Permission.feature)
 | Description | Method | URI |
 | --- | --- | --- |
-| 拿取使用者資料 | GET | /userController/getUsers |
+| 拿取使用者資料 | GET | /userController/getUsers?uid=<user-uid> |
 | 更新使用者權限 | PUT | /userController/updatePermission |
 
 #### Status與Message說明對照表 - 拿取使用者資料
 
 | Status Code | Status| Message | 條件|
 | --- | --- | --- | --- |
-| 200 | Success | User data retrieved successfully | 當使用者資料獲取成功時 |
-| 400 | Failed | Bad request | 當請求參數不正確時 |
-| 401 | Failed | Unauthorized | 當使用者未授權時 |
-| 403 | Failed | Forbidden | 當使用者被禁止訪問時 |
-| 404 | Failed | Not found | 當資源未找到時 |
-| 500 | Failed | Internal server error | 當伺服器內部錯誤時 |
+| 200 | Success | User data retrieved successfully | 當使用者有權限獲取資料且資料成功返回 |
+| 401 | Failed | Unauthorized | 使用者無權限訪問該資源|
 
 #### Status與Message說明對照表 - 更新使用者權限
 
 | Status Code | Status| Message | 條件|
 | --- | --- | --- | --- |
 | 200 | Success | User permission updated successfully | 當使用者權限更新成功時 |
-| 400 | Failed | Bad request | 當請求參數不正確時 |
-| 401 | Failed | Unauthorized | 當使用者未授權時 |
-| 403 | Failed | Forbidden | 當使用者被禁止訪問時 |
-| 404 | Failed | Not found | 當資源未找到時 |
-| 500 | Failed | Internal server error | 當伺服器內部錯誤時 |
+| 401 | Failed | Unauthorized | 使用者無權限訪問該資源|
 
 #### Request Body - 拿取使用者資料
 
 ```json
 {
     "header":{
-        "uid": "user-uid"
-    },
+        
+    }
 }
 ```
 
@@ -345,6 +326,8 @@ Gherkin: [使用者權限管理情境文件](scenarios/01-User-Manager_Permissio
 | manager  | admin             | 不可修改           |
 | user     | 任意              | 不可修改           |
 
+- 根據*getUsers*的uid進行資料庫辨別權限程度後，根據*獲取所有使用者資料*規則返回相應的使用者資料列表
+
 
 ## III. 其他資訊
 
@@ -362,6 +345,7 @@ Table Name: TB_USERS
 |-------------|-----------|-------------|---------|
 | uid         | VARCHAR   | 使用者ID，主鍵 | 根據Email進行Uid編碼 |
 | email       | VARCHAR   | 使用者Email，唯一 | 需確認格式正確且唯一 |
+| user_name   | VARCHAR   | 使用者名稱 | 前端顯示用，非唯一 |
 | password    | VARCHAR   | 使用者密碼，需經過哈希處理 | 使用SHA-256演算法 |
 | permission    | VARCHAR   | 使用者權限| 僅有 admin, manager和user, 預設為user |
 | created_at  | TIMESTAMP | 創建時間 | 系統自動生成 |

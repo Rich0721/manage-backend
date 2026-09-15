@@ -6,6 +6,7 @@ HTTP Header 用於在客戶端與伺服器之間傳遞請求和響應的元數�
 
 ## II. 需求說明
 
+此專案的API Header都以JSON格式傳遞，並且根據Header內容建立對應物件，HTTP 請求和響應皆需包含相應的Header資訊。
 
 ### 2-1. Header內容
 
