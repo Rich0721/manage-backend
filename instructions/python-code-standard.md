@@ -1,6 +1,6 @@
 # Python Code Standard
 
-這是一個建立Python開發環境與指令應用於Github Copilot的說明文件。
+這是一個建立Python開發環境與指令應用於AI Agent的說明文件。
 
 ## Code Standards
 
@@ -108,6 +108,7 @@ def calculate_total(price, quantity):
 
 - 類別應遵循單一職責原則，每個類別應專注於單一功能或責任。
 - 請勿將單一簡單功能封裝成類別，若是僅需一個函式即可完成的功能，應直接使用函式而非類別。
+- 每一個類別檔案應僅包含一個主要類別，檔名應與類別名稱對應，並使用小寫加底線命名，，例如：`user_service.py` 對應 `UserService` 類別。
 - 私有屬性應使用雙下劃線 `__` 開頭，例如：`__private_attr`。
 - 私有方法應使用單下劃線 `_` 開頭，例如：`_private_method`。
 - 應避免可以被外部直接修改內部屬性，應透過方法來控制對內部狀態的訪問與修改。

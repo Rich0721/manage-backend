@@ -189,16 +189,8 @@ Programming Language 或 Framework 只影響 Relevant Skills。
 
 ## Project Instructions
 
-Project-specific Rules 與 Code Standards 位於：
-
-`instructions/`
-
-例如：
-
-- `instructions/project.md`
-- `instructions/architecture.md`
-- `instructions/git-workflow.md`
-
+主要的指令應參考 `instructions/project.md`，將由此文件統一管理。
+如果更好管理相關`instructions`，可以將其拆分為多個子文件，並在 `instructions/project.md` 中統一引用。
 
 Project Instructions 用於描述目前 Repository 特有的：
 

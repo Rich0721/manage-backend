@@ -16,8 +16,8 @@ description: 提供 Python Backend 開發共通規範，適用於 Flask、Django
 - FastAPI
 - 其他 Python Backend Framework
 
-如果使用者已於**instructions/**中提供明確的專案架構規範，則必須優先遵循使用者定義的專案架構。
-如果使用者未於**instructions/**中提供專案架構規範，則必須遵循**Skill**所定義的專案架構與共通技術規範。
+如果使用者已於`instructions`中提供明確的專案架構規範，則必須優先遵循使用者定義的專案架構。
+如果使用者未於`instructions`中提供專案架構規範，則必須遵循**Skill**所定義的專案架構與共通技術規範。
 使用者提供的專案架構規範僅覆蓋與其衝突的架構規則，本**Skill**中其他未衝突的**Backend**技術規範仍然適用。
 
 ## Core Principles
