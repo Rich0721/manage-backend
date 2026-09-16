@@ -2,7 +2,7 @@
 
 ---
 
-name: python-backend-skill
+name: python-backend
 description: 提供 Python Backend 開發共通規範，適用於 Flask、Django、FastAPI 等後端專案。協助 System Design、Programmer 與 Code Reviewer 在分析、實作與審查後端功能時，遵循既有專案架構、分層責任、資料存取、錯誤處理、Logging、Validation、Dependency 與 Unit Test 規範。
 
 ---
