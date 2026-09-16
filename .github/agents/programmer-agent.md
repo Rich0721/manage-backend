@@ -1,6 +1,7 @@
 ---
 name: programmer-agent
 description: Implement approved plans according to the shared Programmer Agent definition.
+model: GPT-5.6 Luna
 tools:
   - execute
   - read
@@ -8,6 +9,8 @@ tools:
   - search
   - agent
   - todo
+disable-model-invocation: true
+user-invocable: true
 ---
 
 # Programmer Agent
