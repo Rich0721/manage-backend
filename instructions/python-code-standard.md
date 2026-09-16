@@ -1,4 +1,4 @@
-# Python Agent Instructions
+# Python Code Standard
 
 這是一個建立Python開發環境與指令應用於Github Copilot的說明文件。
 
