@@ -15,6 +15,7 @@
 2. 資料庫請使用 PostgreSQL並且以Docker Container 方式運行，在開發環境的`環境配置檔`中進行相關設定，連線資訊可以從該配置檔中取得，連線密碼亦可從中取得。
 3. Redis 請以 Docker Container 方式運行，並在開發環境的`環境配置檔`中進行相關設定，連線資訊可以從該配置檔中取得，連線密碼亦可從中取得。
 4. 因後續完成將以Docker Container 方式運行整個專案，請確保所有服務皆能在 Docker 環境中正常運作，相關環境參數請使用`os.getenv("<ENV_VARIABLE_NAME>", "<DEFAULT_VALUE>")`。
+5. 使用Docker環境進行測試時，因先透過`wsl`啟動 Linux 子系統，請確保 Docker 與 WSL 的整合已正確配置。
 
 ## References
 | Title | Path |
