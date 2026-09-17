@@ -14,6 +14,7 @@ src/
 ├── controllers/
 ├── services/
 ├── repositories/
+├── constants/
 ├── models/
 │   ├── bo/
 │   ├── schemas/
@@ -53,6 +54,7 @@ Controller → Service → Repository → Database
 | `src/controllers/` | API / HTTP Entry Layer | Request、Response、呼叫 Service |
 | `src/services/` | Business Logic Layer | Business Rule、Application Workflow |
 | `src/repositories/` | Data Access Layer | Database Query、CRUD、Persistence |
+| `src/constants/` | Application Constants | 系統常數、配置常數 |
 | `src/models/bo/` | Business Object | `UserBO`、`OrderBO` |
 | `src/models/po/` | Persistence Object | ORM Model、Database Table Mapping |
 | `src/models/schemas/` | API Data Schema | Request、Response、Validation Schema |
@@ -68,6 +70,8 @@ Path: `src/models/bo/`，用於表達 Business Layer 所使用的資料。
 ### PO(Persistence Object)
 
 Path: `src/models/po/` 用於 Database / ORM Mapping。
+Database Table Path: `database/DDL/tables/`
+相關參數應與資料庫表結構保持一致，資料表的變更應同步更新 PO。
 
 ### Schema(API Data Schema)
 
@@ -137,3 +141,4 @@ Shared Utility
 ```
 
 如果現有架構無法滿足 Requirement，應由 *System Design Agent* 先與相關人員確認是否需要調整 Project Architecture。*Programmer* 不應自行新增新的 Architecture Layer。
+
