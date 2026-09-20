@@ -5,10 +5,13 @@ flowchart TD
         EndPoint(更新權限流程結束)
         GetUsersInformation(取得使用者資訊)
         ReceiveInformation(接收使用者資訊)
+        ValidateInformation{驗證使用者資訊}
         UpdatePermission(更新使用者權限)
 
     %% Flow
     StartPoint --> GetUsersInformation
     GetUsersInformation --> ReceiveInformation
-    ReceiveInformation --> UpdatePermission
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| UpdatePermission
+    ValidateInformation --> |資訊驗證失敗| EndPoint
     UpdatePermission --> EndPoint

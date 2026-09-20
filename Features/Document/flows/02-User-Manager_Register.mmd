@@ -7,11 +7,13 @@ flowchart TD
         ValidateInformation{驗證使用者資訊}
         ProduceUserCoding(產生使用者編碼)
         SaveInformation(儲存使用者資訊)
+        ReturnError(回傳註冊失敗訊息)
 
     %% Flow
     StartPoint --> ReceiveInformation
     ReceiveInformation --> ValidateInformation
     ValidateInformation --> |資訊驗證通過| ProduceUserCoding
     ProduceUserCoding --> SaveInformation
-    ValidateInformation --> |資訊驗證失敗| EndPoint
+    ValidateInformation --> |資訊驗證失敗| ReturnError
+    ReturnError --> EndPoint
     SaveInformation --> EndPoint

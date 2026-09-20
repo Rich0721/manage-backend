@@ -1,0 +1,18 @@
+flowchart TD
+
+    %% Nodes
+        StartPoint(登出流程開始)
+        EndPoint(登出流程結束)
+        ReceiveInformation(接收使用者資訊)
+        ValidateInformation{驗證使用者是否已登入}
+        DeleteSessionFromRedis(刪除使用者登入Session)
+        ReturnError(回傳登出失敗訊息)
+        
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| DeleteSessionFromRedis
+    DeleteSessionFromRedis --> EndPoint
+    ValidateInformation --> |資訊驗證失敗| ReturnError
+    ReturnError --> EndPoint
