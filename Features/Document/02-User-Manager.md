@@ -1,4 +1,4 @@
-# 01-User-Manager
+# 02-User-Manager
 
 ## I. 需求簡介
 
@@ -9,8 +9,8 @@ Header說明請參考[HTTP Header](01-Header.md)文檔。
 
 ### 2-1. 使用者註冊
 
-Flow Chat: [使用者註冊流程圖](flows/01-User-Manager_Register.mmd)
-Gherkin: [使用者註冊情境文件](scenarios/01-User-Manager_Register.feature)
+Flow Chat: [使用者註冊流程圖](flows/02-User-Manager_Register.mmd)
+Gherkin: [使用者註冊情境文件](scenarios/02-User-Manager_Register.feature)
 METHOD: POST
 uri: /userController/register
 
@@ -60,8 +60,8 @@ uri: /userController/register
 
 
 ### 2-2. 使用者登入
-Flow Chat: [使用者登入流程圖](flows/01-User-Manager_Login.mmd)
-Gherkin: [使用者登入情境文件](scenarios/01-User-Manager_Login.feature)
+Flow Chat: [使用者登入流程圖](flows/02-User-Manager_Login.mmd)
+Gherkin: [使用者登入情境文件](scenarios/02-User-Manager_Login.feature)
 METHOD: POST
 uri: /userController/login
 
