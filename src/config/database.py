@@ -31,7 +31,8 @@ class DatabaseConnectionManager(object):
                 await self.close()
             except BaseException:
                 LOGGER.exception(
-                    "Failed to close database pool while handling another error",
+                    "Failed to close database pool while handling "
+                    "another error",
                 )
         return False
 

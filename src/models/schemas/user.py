@@ -8,6 +8,7 @@ from pydantic import ConfigDict
 from pydantic import EmailStr
 from pydantic import Field
 from pydantic import RootModel
+from pydantic import StrictBool
 from pydantic import StringConstraints
 from pydantic import field_validator
 
@@ -55,7 +56,7 @@ class RegisterRequestInfo(_EmailInfo):
 
 class LoginRequestInfo(_EmailInfo):
     password: EncryptedPassword
-    is_force_login: bool = Field(alias="isForceLogin")
+    is_force_login: StrictBool = Field(alias="isForceLogin")
 
 
 class LogoutRequestInfo(BaseModel):
@@ -108,7 +109,7 @@ class GetUsersResponseInfo(RootModel[list[UserSummary]]):
     pass
 
 
-class ErrorDetail(BaseModel):
+class ValidationErrorItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     location: list[str | int]
@@ -119,7 +120,7 @@ class ErrorDetail(BaseModel):
 class ErrorResponseInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    errors: list[ErrorDetail] = Field(default_factory=list)
+    errors: list[ValidationErrorItem] = Field(default_factory=list)
 
 
 RegisterRequest = UserEnvelope[RegisterRequestInfo]
@@ -128,8 +129,8 @@ LogoutRequest = UserEnvelope[LogoutRequestInfo]
 GetUsersRequest = UserEnvelope[GetUsersRequestInfo]
 UpdatePermissionRequest = UserEnvelope[UpdatePermissionRequestInfo]
 RegisterResponse = UserEnvelope[RegisterResponseInfo]
-LoginResponse = UserEnvelope[LoginResponseInfo | dict[str, Any]]
+LoginResponse = UserEnvelope[LoginResponseInfo]
 LogoutResponse = UserEnvelope[LogoutResponseInfo]
 GetUsersResponse = UserEnvelope[GetUsersResponseInfo]
 UpdatePermissionResponse = UserEnvelope[EmptyInfo]
-ErrorResponse = UserEnvelope[ErrorResponseInfo]
+ErrorResponse = UserEnvelope[EmptyInfo | ErrorResponseInfo]

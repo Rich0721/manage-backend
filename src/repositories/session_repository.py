@@ -6,6 +6,10 @@ class SessionRepositoryError(Exception):
     pass
 
 
+class SessionNotFoundError(SessionRepositoryError):
+    pass
+
+
 class SessionRepository(object):
     def __init__(self, client: Redis, ttl: int) -> None:
         self.__client = client
@@ -44,11 +48,12 @@ class SessionRepository(object):
         except RedisError as error:
             raise SessionRepositoryError from error
 
-    async def delete(self, uid: str) -> None:
+    async def delete(self, uid: str) -> bool:
         try:
-            await self.__client.delete(self.key(uid))
+            deleted_count = await self.__client.delete(self.key(uid))
         except RedisError as error:
             raise SessionRepositoryError from error
+        return deleted_count > 0
 
     async def refresh(self, uid: str) -> None:
         try:
@@ -56,4 +61,4 @@ class SessionRepository(object):
         except RedisError as error:
             raise SessionRepositoryError from error
         if not refreshed:
-            raise SessionRepositoryError("Session disappeared before refresh")
+            raise SessionNotFoundError

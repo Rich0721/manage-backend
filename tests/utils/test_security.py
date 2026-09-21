@@ -27,9 +27,11 @@ def test_encrypted_password_comparison_is_case_sensitive() -> None:
 
 def test_issue_and_decode_access_token() -> None:
     token = issue_access_token("uid-1", SECRET, 300)
+    payload = decode_access_token(token, SECRET)
 
     assert token.startswith("Bearer ")
-    assert decode_access_token(token, SECRET)["sub"] == "uid-1"
+    assert payload["sub"] == "uid-1"
+    assert payload["exp"] - payload["iat"] == 300
 
 
 @pytest.mark.parametrize("token", ["token", "Bearer ", "Bearer has space"])
@@ -41,7 +43,11 @@ def test_decode_rejects_malformed_bearer_token(token: str) -> None:
 def test_decode_rejects_expired_token() -> None:
     now = datetime.now(timezone.utc)
     encoded = jwt.encode(
-        {"sub": "uid", "iat": now - timedelta(seconds=10), "exp": now - timedelta(seconds=1)},
+        {
+            "sub": "uid",
+            "iat": now - timedelta(seconds=10),
+            "exp": now - timedelta(seconds=1),
+        },
         SECRET,
         algorithm=JWT_ALGORITHM,
     )
@@ -58,4 +64,36 @@ def test_decode_rejects_missing_required_claim() -> None:
     )
 
     with pytest.raises(jwt.MissingRequiredClaimError):
+        decode_access_token(f"Bearer {encoded}", SECRET)
+
+
+def test_decode_rejects_tampered_token() -> None:
+    token = issue_access_token("uid", SECRET, 300)
+    encoded = token.removeprefix("Bearer ")
+    replacement = "a" if encoded[-1] != "a" else "b"
+
+    with pytest.raises(jwt.InvalidTokenError):
+        decode_access_token(f"Bearer {encoded[:-1]}{replacement}", SECRET)
+
+
+def test_decode_rejects_wrong_key() -> None:
+    token = issue_access_token("uid", SECRET, 300)
+
+    with pytest.raises(jwt.InvalidSignatureError):
+        decode_access_token(token, "another-secret" * 6)
+
+
+def test_decode_rejects_wrong_algorithm() -> None:
+    now = datetime.now(timezone.utc)
+    encoded = jwt.encode(
+        {
+            "sub": "uid",
+            "iat": now,
+            "exp": now + timedelta(seconds=300),
+        },
+        SECRET,
+        algorithm="HS384",
+    )
+
+    with pytest.raises(jwt.InvalidAlgorithmError):
         decode_access_token(f"Bearer {encoded}", SECRET)

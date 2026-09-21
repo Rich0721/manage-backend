@@ -1,6 +1,9 @@
 import os
 
 
+DEFAULT_DATABASE_URL = (
+    "postgresql://progresql:progresql@localhost:5432/progresql"
+)
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 DEFAULT_REDIS_TTL = 300
 DEFAULT_DEBUG_SECRET_KEY = (
@@ -29,7 +32,7 @@ class Settings(object):
         if not redis_url.strip():
             raise ValueError("REDIS_URL must not be empty")
 
-        database_url = os.getenv("DATABASE_URL", "")
+        database_url = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
         if not database_url.strip():
             raise ValueError("DATABASE_URL must not be empty")
 

@@ -28,6 +28,7 @@ from src.services.errors import InvalidCredentialsError
 from src.services.errors import PasswordMismatchError
 from src.services.errors import PermissionDeniedError
 from src.services.errors import ServiceUnavailableError
+from src.services.errors import SessionInvalidError
 from src.services.errors import UserNotFoundError
 from src.utils.security import hash_uid
 from src.utils.security import issue_access_token
@@ -148,9 +149,11 @@ class UserService(object):
         context = await self.__authorization.validate_session(auth)
         user = await self.__get_operator(context.uid)
         try:
-            await self.__sessions.delete(context.uid)
+            is_deleted = await self.__sessions.delete(context.uid)
         except SessionRepositoryError as error:
             raise ServiceUnavailableError from error
+        if not is_deleted and not context.is_debug_bypass:
+            raise SessionInvalidError
         return LogoutResponseInfo(userName=user.user_name)
 
     async def get_users(

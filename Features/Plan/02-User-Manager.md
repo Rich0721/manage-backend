@@ -3,16 +3,17 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Code Review Failed
+Plan Status: Review Fix Awaiting Integration Validation
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-09-21
-Implementation Gate: REVIEW FIX REQUIRED
+Implementation Gate: INTEGRATION VALIDATION REQUIRED
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
 `01-Authorization` 先前 deferred 的 JWT、Redis session 與 authentication integration，
-不新增或修改 PM Requirement。API、Session、JWT、DEBUG、dependency 與 error mapping
-均已完成技術定案，Plan 進入人工審核；審核完成前不得開始 Implementation。
+不修改 PM Requirement 文件。API、Session、JWT、DEBUG、dependency 與 error mapping
+均已完成技術定案；另依使用者 2026-09-21 指示，DATABASE_URL 改為支援本機預設值，
+並允許 environment override。
 
 ## II. Requirement Information
 
@@ -57,6 +58,7 @@ Implementation Gate: REVIEW FIX REQUIRED
 | Batch update | 未定義 | 全部成功才 commit，否則不更新 | ADD；transaction/rollback |
 | Register error | 未定義 HTTP code | Success 200、business validation 400 | ADD；controller mapping |
 | Table | `TB_USERS`、未定義長度 | `tb_users`、password 64，其餘 VARCHAR 256 | MODIFY；DDL/PO/validation |
+| Database configuration | `DATABASE_URL` 必填且無 default | 預設連線 `localhost:5432`，帳號、密碼及資料庫名稱為 `progresql`；可由 `DATABASE_URL` 覆寫 | MODIFY；settings/tests/deployment configuration |
 
 ## III. Requirement Summary
 
@@ -124,7 +126,9 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
    - `DEBUG = os.getenv("DEBUG", "false")`，只接受明確 true/false 值。
    - DEBUG 可使用 requirement 提供的固定 SECRET_KEY default；PRODUCTION 的
      `SECRET_KEY` 必須由 environment 提供，missing/blank 時 application startup fail。
-   - `DATABASE_URL` 必須由 environment 提供，missing/blank 時 startup fail。
+   - `DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://progresql:progresql@localhost:5432/progresql")`。
+   - environment 有提供非空值時覆寫本機預設；顯式 blank 仍視為設定錯誤並使 startup fail。
+   - 本機預設僅供 local development；deployment 應以 environment 提供實際連線資訊。
 5. **DEBUG authentication**
    - Authorization token 缺少且 DEBUG=true 時，只略過 JWT/Redis authentication。
    - Protected use case 仍必須提供 `body.auth.uid`、從 `tb_users` 載入 operator，並
@@ -445,7 +449,7 @@ Controller 依第 4.3 節統一 mapping；Repository 不建立 HTTP response，S
 
 | Variable | Purpose | Default / Validation |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL connection URL | Required、non-empty、無 default |
+| `DATABASE_URL` | PostgreSQL connection URL | `postgresql://progresql:progresql@localhost:5432/progresql`；environment 可覆寫；顯式 blank 拒絕 |
 | `REDIS_TTL` | Redis/JWT expiration seconds | `300`、integer > 0 |
 | `SECRET_KEY` | HS256 signing/verifying | DEBUG 可用 requirement default；PRODUCTION required |
 | `DEBUG` | Authentication debug policy | `false`、strict boolean parsing |
@@ -470,19 +474,20 @@ to avoid constructor auto-open warnings/future incompatibility。Programmer 仍�
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-005 | User Registration | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-006 | User Login | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-007 | User Logout | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-008 | User Data Query | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-009 | Permission Management | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-005 | User Registration | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-006 | User Login | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-007 | User Logout | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-008 | User Data Query | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-009 | Permission Management | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
 
-所有 Task 已完成初次 Code Review；目前存在 OPEN Review Issue，狀態已轉為
-`REVIEW FIX`，Implementation Gate 為 `REVIEW FIX REQUIRED`。
+Review Fix 的 Production Code、Unit Test 與 Regression Test 已完成。TASK-003 與
+TASK-004 仍等待 PostgreSQL 17 與 Redis 8.1 target integration validation；其餘 Task
+已恢復為 `DEVELOPED DONE`。
 
 ## IX. Implementation Steps
 
@@ -562,12 +567,15 @@ Current Behavior:
 Settings only exposes REDIS_URL; no PostgreSQL client or lifecycle exists.
 
 Expected Behavior:
-Configuration is read from environment, credentials are never logged, connection/pool startup
+Configuration uses the documented local PostgreSQL default when DATABASE_URL is absent and uses
+a non-empty environment value when supplied. Credentials are never logged, connection/pool startup
 is validated once, callers acquire/release connections safely, and shutdown closes resources.
 
 Implementation:
 - Add only the four pinned dependencies listed in section 7.8.
-- Read configuration with os.getenv according to project instructions.
+- Read DATABASE_URL with `os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)`; define the local
+  default as `postgresql://progresql:progresql@localhost:5432/progresql`.
+- Reject an explicitly blank DATABASE_URL; do not expose the URL or credentials in errors/logs.
 - Create async PostgreSQL connection/pool lifecycle; do not open a connection for each repository
   operation without pooling.
 - Construct `AsyncConnectionPool(DATABASE_URL, open=False)`，`connect()` explicitly awaits
@@ -583,8 +591,9 @@ Error Handling:
 - Never include DATABASE_URL/JWT secret values in errors or logs.
 
 Testing:
-- DATABASE_URL required behavior, REDIS_TTL default/positive integer validation, DEBUG strict
-  boolean parsing and DEBUG/PRODUCTION SECRET_KEY policy.
+- DATABASE_URL local default/environment override/explicit blank behavior, REDIS_TTL
+  default/positive integer validation, DEBUG strict boolean parsing and DEBUG/PRODUCTION
+  SECRET_KEY policy.
 - Connection/pool startup, acquisition, transaction, cleanup and idempotent close with mocks.
 - `open=False` construction、explicit open/wait、get-before-connect and repeated-connect behavior.
 - Startup and close failure behavior.
@@ -1058,10 +1067,12 @@ Testing:
 - [ ] Code Review 通過
 
 ```text
-Current Handoff: Programmer Agent for Review Fix
-Next Handoff: Code Review Agent after tasks return to DEVELOPED DONE
+Current Handoff: Code Review Agent for updated DATABASE_URL default and review-fix validation
+Next Handoff: Environment Owner for PostgreSQL 17 / Redis 8.1 integration access
 Implementation Scope: User Manager register/login/logout/list/permission APIs
-Review Result: FAILED - see Features/Review/02-User-Manager/
-Test Result: 98 passed, but required coverage and functional issues remain
+Review Fix Result: Production and unit-test issues addressed
+Test Result: 192 passed, 2 integration tests skipped without target environment
+Environment Finding: local Redis is 7.4.11; PostgreSQL rejects the configured
+                     progresql/progresql localhost credentials
 Do Not Modify: Features/Document requirements, completed Authorization behavior, unrelated code
 ```

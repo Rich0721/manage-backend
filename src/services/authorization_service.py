@@ -7,6 +7,7 @@ from src.config.settings import Settings
 from src.models.schemas.authorization import AuthorizationObject
 from src.repositories.session_repository import SessionRepository
 from src.repositories.session_repository import SessionRepositoryError
+from src.repositories.session_repository import SessionNotFoundError
 from src.services.errors import AuthorizationInvalidError
 from src.services.errors import AuthorizationRequiredError
 from src.services.errors import ServiceUnavailableError
@@ -55,7 +56,11 @@ class AuthorizationService(object):
             stored_token = await self.__sessions.get(uid)
         except SessionRepositoryError as error:
             raise ServiceUnavailableError from error
-        if stored_token is None or not hmac.compare_digest(stored_token, token):
+        is_matching_session = (
+            stored_token is not None
+            and hmac.compare_digest(stored_token, token)
+        )
+        if not is_matching_session:
             raise SessionInvalidError
 
         return AuthorizationContext(uid, token, False)
@@ -65,5 +70,7 @@ class AuthorizationService(object):
             return
         try:
             await self.__sessions.refresh(context.uid)
+        except SessionNotFoundError as error:
+            raise SessionInvalidError from error
         except SessionRepositoryError as error:
             raise ServiceUnavailableError from error

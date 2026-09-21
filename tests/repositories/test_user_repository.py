@@ -3,10 +3,12 @@ from typing import Any
 
 import pytest
 from psycopg import OperationalError
+from psycopg.errors import UniqueViolation
 
 from src.constants.user import UserRole
 from src.models.po.user import UserPO
 from src.repositories.user_repository import UserRepository
+from src.repositories.user_repository import DuplicateUserRecordError
 from src.repositories.user_repository import UserRepositoryError
 
 
@@ -27,6 +29,7 @@ class FakeCursor(object):
         self.rows = rows
         self.executions: list[tuple[str, object]] = []
         self.executemany_call: tuple[str, object] | None = None
+        self.executemany_error: Exception | None = None
 
     async def __aenter__(self) -> "FakeCursor":
         return self
@@ -45,13 +48,22 @@ class FakeCursor(object):
 
     async def executemany(self, query: str, parameters: object) -> None:
         self.executemany_call = (query, parameters)
+        if self.executemany_error:
+            raise self.executemany_error
 
 
 class FakeTransaction(object):
+    def __init__(self) -> None:
+        self.is_committed = False
+        self.is_rolled_back = False
+
     async def __aenter__(self) -> None:
         return None
 
     async def __aexit__(self, *args: object) -> None:
+        exception_type = args[0]
+        self.is_committed = exception_type is None
+        self.is_rolled_back = exception_type is not None
         return None
 
 
@@ -60,6 +72,7 @@ class FakeConnection(object):
         self.cursor_value = FakeCursor(rows or [])
         self.insert_call: tuple[str, object] | None = None
         self.error: Exception | None = None
+        self.transaction_value = FakeTransaction()
 
     def cursor(self, **kwargs: object) -> FakeCursor:
         return self.cursor_value
@@ -70,7 +83,7 @@ class FakeConnection(object):
         self.insert_call = (query, parameters)
 
     def transaction(self) -> FakeTransaction:
-        return FakeTransaction()
+        return self.transaction_value
 
 
 class ConnectionContext(object):
@@ -181,3 +194,120 @@ async def test_database_error_is_hidden_behind_repository_error() -> None:
 
     with pytest.raises(UserRepositoryError):
         await repository.create(user)
+
+
+@pytest.mark.asyncio
+async def test_get_by_uid_maps_row_and_not_found() -> None:
+    found_connection = FakeConnection([ROW])
+    found_repository = UserRepository(
+        FakePool(found_connection),  # type: ignore[arg-type]
+    )
+    missing_connection = FakeConnection()
+    missing_repository = UserRepository(
+        FakePool(missing_connection),  # type: ignore[arg-type]
+    )
+
+    found = await found_repository.get_by_uid("uid")
+    missing = await missing_repository.get_by_uid("missing")
+
+    assert found is not None
+    assert found.uid == "uid"
+    assert missing is None
+    _, parameters = found_connection.cursor_value.executions[0]
+    assert parameters == ("uid",)
+
+
+@pytest.mark.asyncio
+async def test_get_by_emails_uses_batch_query_and_row_lock() -> None:
+    connection = FakeConnection([ROW])
+    repository = UserRepository(FakePool(connection))  # type: ignore[arg-type]
+
+    users = await repository.get_by_emails(
+        ["user@example.com"],
+        connection,  # type: ignore[arg-type]
+        for_update=True,
+    )
+
+    query, parameters = connection.cursor_value.executions[0]
+    assert len(users) == 1
+    assert "email = ANY(%s)" in query
+    assert query.rstrip().endswith("FOR UPDATE")
+    assert parameters == (["user@example.com"],)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("roles", "expected"),
+    [
+        ((UserRole.USER,), ["user"]),
+        ((UserRole.MANAGER, UserRole.USER), ["manager", "user"]),
+    ],
+)
+async def test_list_visible_users_uses_only_allowed_roles(
+    roles: tuple[UserRole, ...],
+    expected: list[str],
+) -> None:
+    connection = FakeConnection([])
+    repository = UserRepository(FakePool(connection))  # type: ignore[arg-type]
+
+    await repository.list_visible_users(roles)
+
+    _, parameters = connection.cursor_value.executions[0]
+    assert parameters == (expected,)
+
+
+@pytest.mark.asyncio
+async def test_unique_violation_maps_to_duplicate_record_error() -> None:
+    connection = FakeConnection()
+    connection.error = UniqueViolation("duplicate")
+    repository = UserRepository(FakePool(connection))  # type: ignore[arg-type]
+    user = UserPO(
+        uid="uid",
+        email="user@example.com",
+        user_name="User",
+        password="A" * 64,
+        permission=UserRole.USER,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    with pytest.raises(DuplicateUserRecordError):
+        await repository.create(user)
+
+
+@pytest.mark.asyncio
+async def test_transaction_commit_and_rollback() -> None:
+    success_connection = FakeConnection()
+    success_repository = UserRepository(
+        FakePool(success_connection),  # type: ignore[arg-type]
+    )
+    async with success_repository.transaction():
+        pass
+
+    failure_connection = FakeConnection()
+    failure_repository = UserRepository(
+        FakePool(failure_connection),  # type: ignore[arg-type]
+    )
+    with pytest.raises(RuntimeError, match="failure"):
+        async with failure_repository.transaction():
+            raise RuntimeError("failure")
+
+    assert success_connection.transaction_value.is_committed
+    assert failure_connection.transaction_value.is_rolled_back
+
+
+@pytest.mark.asyncio
+async def test_update_failure_maps_error_and_rolls_back_transaction() -> None:
+    connection = FakeConnection()
+    connection.cursor_value.executemany_error = OperationalError("failed")
+    repository = UserRepository(FakePool(connection))  # type: ignore[arg-type]
+
+    with pytest.raises(UserRepositoryError):
+        async with repository.transaction() as transactional_connection:
+            await repository.update_permissions(
+                {"user@example.com": UserRole.MANAGER},
+                NOW,
+                transactional_connection,
+            )
+
+    assert connection.transaction_value.is_rolled_back

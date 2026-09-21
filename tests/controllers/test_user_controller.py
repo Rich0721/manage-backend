@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.constants.user import AuthStatus
@@ -12,7 +13,16 @@ from src.models.schemas.user import LogoutResponseInfo
 from src.models.schemas.user import RegisterResponseInfo
 from src.models.schemas.user import UserSummary
 from src.services.authorization_service import AuthorizationContext
+from src.services.errors import AuthorizationInvalidError
+from src.services.errors import AuthorizationRequiredError
+from src.services.errors import DuplicateEmailError
 from src.services.errors import ExistingSessionError
+from src.services.errors import InvalidCredentialsError
+from src.services.errors import PasswordMismatchError
+from src.services.errors import PermissionDeniedError
+from src.services.errors import ServiceUnavailableError
+from src.services.errors import SessionInvalidError
+from src.services.errors import UserNotFoundError
 from src.services.user_service import LoginResult
 from src.services.user_service import ProtectedResult
 
@@ -44,7 +54,7 @@ def make_client(service: AsyncMock) -> TestClient:
         redis_manager_factory=lambda settings: FakeManager(object()),
     )
     application.dependency_overrides[get_user_service] = lambda: service
-    return TestClient(application)
+    return TestClient(application, raise_server_exceptions=False)
 
 
 def test_all_exact_routes_are_registered() -> None:
@@ -60,6 +70,16 @@ def test_all_exact_routes_are_registered() -> None:
     assert "post" in paths["/userController/logout"]
     assert "post" in paths["/userController/getUsers"]
     assert "put" in paths["/userController/updatePermission"]
+    for path in paths.values():
+        operation = path.get("post") or path.get("put")
+        schema = operation["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
+        assert schema.get("additionalProperties") is not True
+        validation_schema = operation["responses"]["422"]["content"][
+            "application/json"
+        ]["schema"]
+        assert validation_schema.get("additionalProperties") is not True
 
 
 def test_register_response_has_no_authorization_header() -> None:
@@ -87,8 +107,22 @@ def test_register_response_has_no_authorization_header() -> None:
 
     assert response.status_code == 200
     assert "authorization" not in response.headers
-    assert response.json()["body"]["auth"]["status"] == AuthStatus.SUCCESS
-    assert response.json()["body"]["info"]["userName"] == "User"
+    assert response.json() == {
+        "header": {},
+        "body": {
+            "auth": {
+                "status": AuthStatus.SUCCESS,
+                "message": UserMessage.REGISTERED,
+                "uid": None,
+                "authorization": None,
+            },
+            "info": {
+                "email": "user@example.com",
+                "uid": "uid",
+                "userName": "User",
+            },
+        },
+    }
 
 
 def test_login_synchronizes_body_and_http_authorization() -> None:
@@ -115,7 +149,15 @@ def test_login_synchronizes_body_and_http_authorization() -> None:
 
     assert response.status_code == 200
     assert response.headers["Authorization"] == "Bearer token"
-    assert response.json()["body"]["auth"]["authorization"] == "Bearer token"
+    assert response.json()["body"] == {
+        "auth": {
+            "status": AuthStatus.SUCCESS,
+            "message": UserMessage.LOGGED_IN,
+            "uid": "uid",
+            "authorization": "Bearer token",
+        },
+        "info": {"userName": "User"},
+    }
 
 
 def test_existing_session_maps_to_409_without_token() -> None:
@@ -171,7 +213,21 @@ def test_get_users_echoes_validated_body_token() -> None:
 
     assert response.status_code == 200
     assert response.headers["Authorization"] == "Bearer token"
-    assert response.json()["body"]["info"][0]["permission"] == "user"
+    assert response.json()["body"] == {
+        "auth": {
+            "status": AuthStatus.SUCCESS,
+            "message": UserMessage.USERS_RETRIEVED,
+            "uid": "uid",
+            "authorization": "Bearer token",
+        },
+        "info": [
+            {
+                "email": "user@example.com",
+                "userName": "User",
+                "permission": "user",
+            },
+        ],
+    }
 
 
 def test_logout_does_not_return_authorization_header() -> None:
@@ -189,7 +245,15 @@ def test_logout_does_not_return_authorization_header() -> None:
 
     assert response.status_code == 200
     assert "authorization" not in response.headers
-    assert response.json()["body"]["info"]["userName"] == "Stored Name"
+    assert response.json()["body"] == {
+        "auth": {
+            "status": AuthStatus.SUCCESS,
+            "message": UserMessage.LOGGED_OUT,
+            "uid": None,
+            "authorization": None,
+        },
+        "info": {"userName": "Stored Name"},
+    }
 
 
 def test_update_permission_uses_list_contract_and_echoes_token() -> None:
@@ -215,7 +279,15 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
 
     assert response.status_code == 200
     assert response.headers["Authorization"] == "Bearer token"
-    assert response.json()["body"]["info"] == {}
+    assert response.json()["body"] == {
+        "auth": {
+            "status": AuthStatus.SUCCESS,
+            "message": UserMessage.PERMISSIONS_UPDATED,
+            "uid": "uid",
+            "authorization": "Bearer token",
+        },
+        "info": {},
+    }
 
 
 def test_schema_error_uses_standard_envelope() -> None:
@@ -230,3 +302,133 @@ def test_schema_error_uses_standard_envelope() -> None:
     assert body["auth"]["status"] == AuthStatus.FAILED
     assert body["auth"]["message"] == UserMessage.VALIDATION_ERROR
     assert body["info"]["errors"]
+
+
+@pytest.mark.parametrize(
+    ("error", "status_code", "auth_status", "message"),
+    [
+        (
+            DuplicateEmailError(),
+            400,
+            AuthStatus.FAILED,
+            UserMessage.DUPLICATE_EMAIL,
+        ),
+        (
+            PasswordMismatchError(),
+            400,
+            AuthStatus.FAILED,
+            UserMessage.PASSWORD_MISMATCH,
+        ),
+        (
+            InvalidCredentialsError(),
+            401,
+            AuthStatus.FAILED,
+            UserMessage.LOGIN_FAILED,
+        ),
+        (
+            AuthorizationRequiredError(),
+            401,
+            AuthStatus.UNAUTHORIZED,
+            UserMessage.AUTHORIZATION_REQUIRED,
+        ),
+        (
+            AuthorizationInvalidError(),
+            401,
+            AuthStatus.UNAUTHORIZED,
+            UserMessage.AUTHORIZATION_INVALID,
+        ),
+        (
+            SessionInvalidError(),
+            401,
+            AuthStatus.FORCE_LOGOUT,
+            UserMessage.SESSION_INVALID,
+        ),
+        (
+            PermissionDeniedError(),
+            403,
+            AuthStatus.UNAUTHORIZED,
+            UserMessage.PERMISSION_DENIED,
+        ),
+        (
+            UserNotFoundError(),
+            404,
+            AuthStatus.FAILED,
+            UserMessage.USER_NOT_FOUND,
+        ),
+        (
+            ExistingSessionError(),
+            409,
+            AuthStatus.FAILED,
+            UserMessage.ALREADY_LOGGED_IN,
+        ),
+        (
+            ServiceUnavailableError(),
+            503,
+            AuthStatus.FAILED,
+            UserMessage.SERVICE_UNAVAILABLE,
+        ),
+    ],
+)
+def test_application_error_mapping_uses_standard_envelope(
+    error: Exception,
+    status_code: int,
+    auth_status: str,
+    message: str,
+) -> None:
+    service = AsyncMock()
+    service.login.side_effect = error
+    payload = {
+        "body": {
+            "auth": {},
+            "info": {
+                "email": "user@example.com",
+                "password": PASSWORD,
+                "isForceLogin": False,
+            },
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post("/userController/login", json=payload)
+
+    assert response.status_code == status_code
+    assert "authorization" not in response.headers
+    assert response.json() == {
+        "header": {},
+        "body": {
+            "auth": {
+                "status": auth_status,
+                "message": message,
+                "uid": None,
+                "authorization": None,
+            },
+            "info": {},
+        },
+    }
+
+
+def test_unexpected_error_maps_to_safe_500_response(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    service = AsyncMock()
+    service.login.side_effect = RuntimeError("sensitive internal detail")
+    payload = {
+        "body": {
+            "auth": {},
+            "info": {
+                "email": "user@example.com",
+                "password": PASSWORD,
+                "isForceLogin": False,
+            },
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post("/userController/login", json=payload)
+
+    assert response.status_code == 500
+    assert "sensitive internal detail" not in response.text
+    assert "sensitive internal detail" not in caplog.text
+    assert response.json()["body"]["auth"]["message"] == (
+        UserMessage.INTERNAL_ERROR
+    )

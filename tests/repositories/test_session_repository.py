@@ -25,6 +25,8 @@ class FakePipeline(object):
         self.commands.append(("set", key, value, ex))
 
     async def execute(self) -> None:
+        if self.redis.error:
+            raise self.redis.error
         self.redis.pipeline_commands = self.commands
 
 
@@ -46,10 +48,10 @@ class FakeRedis(object):
         self.values[key] = value
         self.expirations[key] = ex
 
-    async def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> int:
         if self.error:
             raise self.error
-        self.values.pop(key, None)
+        return 1 if self.values.pop(key, None) is not None else 0
 
     async def expire(self, key: str, ttl: int) -> bool:
         if self.error:
@@ -73,7 +75,7 @@ async def test_session_crud_and_ttl() -> None:
     assert await repository.get("uid") == "Bearer token"
     assert client.expirations["uid:login"] == 300
     await repository.refresh("uid")
-    await repository.delete("uid")
+    assert await repository.delete("uid")
     assert await repository.get("uid") is None
 
 
@@ -106,3 +108,33 @@ async def test_refresh_missing_session_is_failure() -> None:
 
     with pytest.raises(SessionRepositoryError):
         await repository.refresh("uid")
+
+
+@pytest.mark.asyncio
+async def test_delete_missing_session_returns_false() -> None:
+    repository = SessionRepository(FakeRedis(), 300)  # type: ignore[arg-type]
+
+    assert not await repository.delete("uid")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation",
+    ["set", "force_replace", "delete", "refresh"],
+)
+async def test_write_operation_redis_failure_is_mapped(
+    operation: str,
+) -> None:
+    client = FakeRedis()
+    client.error = ConnectionError("unavailable")
+    repository = SessionRepository(client, 300)  # type: ignore[arg-type]
+
+    with pytest.raises(SessionRepositoryError):
+        if operation == "set":
+            await repository.set("uid", "Bearer token")
+        elif operation == "force_replace":
+            await repository.force_replace("uid", "Bearer token")
+        elif operation == "delete":
+            await repository.delete("uid")
+        else:
+            await repository.refresh("uid")

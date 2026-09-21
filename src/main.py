@@ -15,7 +15,7 @@ from src.config.redis import RedisConnectionManager
 from src.config.settings import Settings
 from src.constants.user import AuthStatus
 from src.constants.user import UserMessage
-from src.controllers.user_controller import build_envelope
+from src.controllers.user_controller import build_error_envelope
 from src.controllers.user_controller import router
 from src.services.errors import ApplicationError
 
@@ -55,7 +55,7 @@ def create_app(
     ) -> JSONResponse:
         return JSONResponse(
             status_code=error.status_code,
-            content=build_envelope(
+            content=build_error_envelope(
                 status=error.auth_status,
                 message=error.public_message,
                 info={},
@@ -77,7 +77,7 @@ def create_app(
         ]
         return JSONResponse(
             status_code=422,
-            content=build_envelope(
+            content=build_error_envelope(
                 status=AuthStatus.FAILED,
                 message=UserMessage.VALIDATION_ERROR,
                 info={"errors": details},
@@ -89,10 +89,15 @@ def create_app(
         request: Request,
         error: Exception,
     ) -> JSONResponse:
-        LOGGER.exception("Unhandled application error", exc_info=error)
+        LOGGER.error(
+            "Unhandled application error method=%s path=%s type=%s",
+            request.method,
+            request.url.path,
+            type(error).__name__,
+        )
         return JSONResponse(
             status_code=500,
-            content=build_envelope(
+            content=build_error_envelope(
                 status=AuthStatus.FAILED,
                 message=UserMessage.INTERNAL_ERROR,
                 info={},
