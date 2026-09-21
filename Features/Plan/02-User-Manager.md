@@ -3,17 +3,18 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Review Fix Awaiting Integration Validation
+Plan Status: Awaiting Review
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-09-21
-Implementation Gate: INTEGRATION VALIDATION REQUIRED
+Implementation Gate: PLAN REVIEW REQUIRED
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
 `01-Authorization` 先前 deferred 的 JWT、Redis session 與 authentication integration，
 不修改 PM Requirement 文件。API、Session、JWT、DEBUG、dependency 與 error mapping
-均已完成技術定案；另依使用者 2026-09-21 指示，DATABASE_URL 改為支援本機預設值，
-並允許 environment override。
+均已完成技術定案；另依使用者 2026-09-21 指示，DATABASE_URL 支援本機預設值，
+並新增 PostgreSQL 17、Redis 8.1.0 的 Docker Compose 與 environment 設計。本次只更新
+Implementation Plan，Plan Review 完成前 Programmer 不得開始新增的部署工作。
 
 ## II. Requirement Information
 
@@ -59,6 +60,9 @@ Implementation Gate: INTEGRATION VALIDATION REQUIRED
 | Register error | 未定義 HTTP code | Success 200、business validation 400 | ADD；controller mapping |
 | Table | `TB_USERS`、未定義長度 | `tb_users`、password 64，其餘 VARCHAR 256 | MODIFY；DDL/PO/validation |
 | Database configuration | `DATABASE_URL` 必填且無 default | 預設連線 `localhost:5432`，帳號、密碼及資料庫名稱為 `progresql`；可由 `DATABASE_URL` 覆寫 | MODIFY；settings/tests/deployment configuration |
+| Local infrastructure | 依賴既有本機 PostgreSQL/Redis，缺少可重現環境 | 以 Docker Compose 啟動 PostgreSQL 17 與 Redis 8.1.0，提供 health check、named volume 與 env template，但不初始化 application database schema/table/data | ADD；deployment/integration testing |
+| Database bootstrap | 原 Compose 草案掛載 `TB_USERS.sql` 自動建立 table | 本階段不掛載 init SQL、不建立 `tb_users`、不載入 DML；schema/migration 留待後續需求 | REMOVE；TASK-011 deployment scope |
+| Container connection | 僅定義 `localhost` development default | Host process 使用 `localhost`；未來 application container 使用 Compose service DNS `postgres` / `redis` | MODIFY；environment documentation |
 
 ## III. Requirement Summary
 
@@ -179,6 +183,9 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
 - Register、login、logout、user list、permission update business rules。
 - FastAPI application bootstrap、router registration、dependency wiring。
 - Unit tests；Database/Redis boundary 使用 mock，並規劃必要的 integration tests。
+- Docker Compose 提供 PostgreSQL 17、Redis 8.1.0 local infrastructure、持久化、健康檢查
+  與 integration test 連線設定；不執行 application schema/table/data 初始化。
+- 提供可提交的 environment template，區分 host process 與 container network 連線位址。
 
 ### Out of Scope
 
@@ -188,6 +195,10 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
 - 使用者資料新增欄位、刪除使用者或修改個人資料。
 - 與本需求無關的 Authorization framework 重構。
 - 未由需求定義的 pagination、sorting、search 或 audit history。
+- FastAPI application image、Dockerfile、reverse proxy、TLS、production secret manager、
+  Kubernetes 或雲端託管服務；本次 Compose 僅建立 Database/Redis infrastructure。
+- PostgreSQL application database schema/table/data bootstrap、migration framework 與 seed data；
+  待系統更完整且取得後續需求後另行設計。
 
 ## VI. Existing System Analysis
 
@@ -201,6 +212,7 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
 | Database | PostgreSQL 17；尚無 client/connection implementation |
 | Redis | Redis 8.1.0 / redis-py 8.1.0 async client |
 | Test | pytest、pytest-asyncio |
+| Container runtime | Docker Compose V2；Windows 開發環境透過 WSL integration |
 
 ### 6.2 Existing Reusable Components
 
@@ -209,7 +221,7 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
   - `AuthorizationBody`
   - `AuthorizationEnvelope`
 - `src/config/settings.py`
-  - `Settings.REDIS_URL`
+  - `Settings.DATABASE_URL` / `Settings.REDIS_URL`
 - `src/config/redis.py`
   - `RedisConnectionManager`
   - `connect()` / `get_client()` / `close()`
@@ -218,6 +230,8 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
   - JWT、Redis token CRUD/TTL 與 feature integration 原列為 deferred scope；本 Plan
     是其正式 follow-up implementation plan。
 - 既有 tests 已驗證 Authorization 基礎結構、Redis 設定與 client lifecycle。
+- `tests/integration/test_user_manager_integration.py`
+  - 已使用 `INTEGRATION_DATABASE_URL` / `INTEGRATION_REDIS_URL` 執行版本與真實服務驗證。
 
 ### 6.3 Missing Components
 
@@ -227,6 +241,8 @@ Rule，只補足實作所需的 security、configuration 與 HTTP boundary：
 - User table DDL。
 - JWT、Uid hashing、encrypted password compare 與 Redis session operations。
 - Application error hierarchy、HTTP error mapping 與 logging configuration。
+- Repository 尚無 `compose.yaml`、tracked environment template 或 Docker 操作說明；目前
+  integration tests 因目標 PostgreSQL 17 / Redis 8.1.0 環境缺失而 skip。
 
 既有 architecture 可支援需求，不需建立新 layer：
 
@@ -450,9 +466,18 @@ Controller 依第 4.3 節統一 mapping；Repository 不建立 HTTP response，S
 | Variable | Purpose | Default / Validation |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection URL | `postgresql://progresql:progresql@localhost:5432/progresql`；environment 可覆寫；顯式 blank 拒絕 |
+| `REDIS_URL` | Redis connection URL | Host default `redis://localhost:6379/0`；Compose 使用含 password 的 environment override |
 | `REDIS_TTL` | Redis/JWT expiration seconds | `300`、integer > 0 |
 | `SECRET_KEY` | HS256 signing/verifying | DEBUG 可用 requirement default；PRODUCTION required |
 | `DEBUG` | Authentication debug policy | `false`、strict boolean parsing |
+| `POSTGRES_USER` | Compose PostgreSQL user | Local template `progresql`；Compose required |
+| `POSTGRES_PASSWORD` | Compose PostgreSQL password | Local template `progresql`；production 必須覆寫且不得提交實際 secret |
+| `POSTGRES_DB` | Compose PostgreSQL database | Local template `progresql`；Compose required |
+| `POSTGRES_PORT` | PostgreSQL host published port | `5432`；只 bind `127.0.0.1` |
+| `REDIS_PASSWORD` | Compose Redis password | Local template `progresql`；production 必須覆寫且不得提交實際 secret |
+| `REDIS_PORT` | Redis host published port | `6379`；只 bind `127.0.0.1` |
+| `INTEGRATION_DATABASE_URL` | PostgreSQL integration test URL | Host 使用 `localhost:${POSTGRES_PORT}`；test 未設定時 skip |
+| `INTEGRATION_REDIS_URL` | Redis integration test URL | Host 使用 `localhost:${REDIS_PORT}` 且包含 password；test 未設定時 skip |
 
 `JWT_ALGORITHM = "HS256"` 為 code constant，不允許透過 environment 或 token header
 動態改變。
@@ -470,6 +495,52 @@ Psycopg official guidance requires explicit async pool open (`open=False` + `awa
 to avoid constructor auto-open warnings/future incompatibility。Programmer 仍需在 project venv
 執行 dependency install 與完整 test suite，確認實際 Windows/Docker build artifacts。
 
+### 7.10 Docker Compose and Environment Design
+
+Docker Compose 僅負責本次需要的 infrastructure，不在此 Task 建置 FastAPI application
+image。Compose project 內使用單一 private bridge network；service name 同時作為 container
+DNS name：
+
+```text
+Host Python process
+  ├─ DATABASE_URL → localhost:${POSTGRES_PORT}
+  └─ REDIS_URL    → localhost:${REDIS_PORT}
+
+Future application container
+  ├─ DATABASE_URL → postgres:5432
+  └─ REDIS_URL    → redis:6379
+```
+
+`localhost` 在 container 內代表 container 自身，不得用於未來 application container 的
+Database/Redis URL。`Settings` 仍只讀取完整的 `DATABASE_URL` / `REDIS_URL`，不得在
+application code 重新組合 `POSTGRES_*` 或 `REDIS_PASSWORD`，避免兩套 configuration
+source of truth。
+
+Compose service 設計：
+
+| Service | Image | Port | Persistence | Health Check | Initialization |
+|---|---|---|---|---|---|
+| `postgres` | `postgres:17` | `127.0.0.1:${POSTGRES_PORT:-5432}:5432` | named volume `postgres_data` | `pg_isready` 使用 configured user/database | 僅由 official image 建立可連線 cluster/target database；不掛載 init SQL，不建立 application schema/table/data |
+| `redis` | `redis:8.1.0` | `127.0.0.1:${REDIS_PORT:-6379}:6379` | named volume `redis_data`，AOF enabled | authenticated `redis-cli ping` | 以 environment 提供的 `REDIS_PASSWORD` 啟用 `requirepass` |
+
+- 不設定固定 `container_name`，避免不同 Compose project/branch name collision。
+- 兩個 service 使用 `restart: unless-stopped`，並設定有 interval、timeout、retries、
+  start period 的 health check。
+- PostgreSQL service 不掛載 `database/DDL/` 或 `/docker-entrypoint-initdb.d/`，也不執行
+  application DDL/DML。`POSTGRES_DB` 僅定義連線目標 database；application schema、table、
+  migration 與 seed data 必須等待後續需求，不得由 Programmer 在 TASK-011 自行加入。
+- 需要清除 volume 時，必須由使用者明確執行 destructive reset。
+- `.env` 保存實際 local credential 並維持 git ignored；`.env.example` 只提供 local
+  template 與變數說明，不得放 production secret。
+- Python `os.getenv` 不會自行載入 `.env`。Host 執行 application/integration test 時，
+  必須由 shell/IDE 注入 `DATABASE_URL`、`REDIS_URL`、`INTEGRATION_*`；未來 app service
+  則由 Compose `environment` 注入 container-network URL。
+- Redis URL 格式為 `redis://:<password>@<host>:<port>/0`；password 若包含 URL reserved
+  characters 必須 percent-encode。PostgreSQL credential 亦須使用合法 URI encoding。
+- `.env.example` 與 README 可顯示已標示為 local-only 的 sample credential/URL；實際
+  `.env` resolved value、production password、URL 或 secret 不得輸出至 application log
+  或 test failure message。
+
 ## VIII. Requirement List
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
@@ -484,10 +555,12 @@ to avoid constructor auto-open warnings/future incompatibility。Programmer 仍�
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
 | TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
+| TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | TODO |  |  |
 
 Review Fix 的 Production Code、Unit Test 與 Regression Test 已完成。TASK-003 與
-TASK-004 仍等待 PostgreSQL 17 與 Redis 8.1 target integration validation；其餘 Task
-已恢復為 `DEVELOPED DONE`。
+TASK-004 仍等待 PostgreSQL 17 與 Redis 8.1 target integration validation。新增的
+TASK-011 必須先完成 Plan Review，再由 Programmer 建立可重現的 Compose environment；
+既有已完成 Task 不因 deployment scope 而重做。
 
 ## IX. Implementation Steps
 
@@ -979,6 +1052,90 @@ Testing:
 - Regression: all existing tests remain passing.
 ```
 
+### TASK-011 Docker Compose Infrastructure and Environment
+
+```text
+File:
+- compose.yaml
+- .env.example
+- .gitignore
+- README.md
+
+Target:
+- postgres service / PostgreSQL 17
+- redis service / Redis 8.1.0
+- backend bridge network
+- postgres_data / redis_data named volumes
+- host-process and container-network connection configuration
+- repeatable integration test workflow
+
+Plan Type: ADD
+Reuse:
+- database/DDL/tables/TB_USERS.sql
+- Settings.DATABASE_URL / Settings.REDIS_URL environment override
+- tests/integration/test_user_manager_integration.py
+Impact: Adds reproducible local infrastructure and removes dependence on mismatched host-installed
+        PostgreSQL/Redis versions without changing application architecture or API behavior
+
+Current Behavior:
+Repository has no Compose definition or tracked environment template. The available localhost
+Redis is 7.4.11 and the available PostgreSQL does not accept the planned local credential, so the
+PostgreSQL 17 / Redis 8.1.0 integration tests cannot currently complete.
+
+Expected Behavior:
+After copying `.env.example` to the git-ignored `.env`, `docker compose up -d --wait postgres redis`
+starts healthy PostgreSQL 17 and Redis 8.1.0 services. A host Python process can connect through
+localhost-published ports; a future application container can connect through service DNS. Data
+volumes survive ordinary stop/down operations. A newly created PostgreSQL volume contains no
+application schema/table/data created by this Compose task.
+
+Implementation:
+- Add `compose.yaml` using exact service names and image versions from section 7.10.
+- Configure PostgreSQL with `POSTGRES_USER=progresql`, `POSTGRES_PASSWORD=progresql` and
+  `POSTGRES_DB=progresql` through required (`${VARIABLE:?message}`) interpolation from `.env`;
+  do not mount `database/DDL/`, `/docker-entrypoint-initdb.d/` or any initialization script.
+- Configure Redis AOF persistence and password authentication from `REDIS_PASSWORD`; escape
+  container-side variables with Compose `$$` where required so the host does not pre-expand them.
+- Bind published ports to `127.0.0.1`, attach both services to a private `backend` bridge network,
+  and declare named volumes. Do not add fixed `container_name`.
+- Health checks must authenticate where applicable and must not depend on the application service.
+- Add `.env.example` with local-only values:
+  `POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB=progresql`, ports 5432/6379,
+  `REDIS_PASSWORD=progresql`, host `DATABASE_URL`/`REDIS_URL`, and matching
+  `INTEGRATION_DATABASE_URL`/`INTEGRATION_REDIS_URL`.
+- Keep `.env` ignored; verify `.env.example` remains tracked. Do not add production credentials.
+- Document WSL/Docker Compose prerequisites, environment copy/export, startup/status/logs,
+  integration test, normal shutdown, and explicit volume-reset procedure in README.md.
+- Document container-network URLs separately:
+  `postgresql://progresql:progresql@postgres:5432/progresql` and
+  `redis://:progresql@redis:6379/0`. These are injected when a future app service is introduced;
+  do not change localhost defaults to container DNS names.
+- Reuse the existing integration tests for PostgreSQL major version 17 and Redis major version 8,
+  authenticated Redis access, TTL and transaction behavior. The existing PostgreSQL test may use
+  an isolated temporary table, but TASK-011 must not create a persistent application table.
+- Do not add Python Docker SDK, YAML parser, dotenv dependency, application Dockerfile or app
+  service in this Task.
+
+Error Handling:
+- Compose startup fails health status when PostgreSQL/Redis service bootstrap or authentication fails.
+- Missing required Compose credentials fail during `docker compose config`, before container start.
+- Documentation must distinguish normal `docker compose down` from destructive
+  `docker compose down -v`; volume deletion is never part of normal test cleanup.
+- Logs and test assertions must not print complete URLs or credential values.
+
+Testing:
+- `docker compose config --quiet` validates interpolation and Compose syntax.
+- `docker compose up -d --wait postgres redis` reaches healthy state; `docker compose ps` confirms
+  both exact target images/services.
+- Run only the two integration tests with host `INTEGRATION_*` variables and require no skip:
+  PostgreSQL 17 temporary-table DDL/constraints and Redis 8.1.0 authentication/TTL/transaction。
+- Verify the persistent PostgreSQL schema does not contain `tb_users` after fresh-volume startup;
+  this assertion belongs to deployment validation and must not modify the database.
+- Run full pytest regression suite after infrastructure validation.
+- Run `docker compose down` and start again to verify named-volume persistence; destructive volume
+  reset is manual and is not executed by automated tests.
+```
+
 ## X. Impact Analysis
 
 | Area | Impact | Details |
@@ -991,11 +1148,12 @@ Testing:
 | Repository | ADD | PostgreSQL user data and Redis session operations |
 | Database | ADD | Users table/constraints and PostgreSQL lifecycle |
 | Redis | ADD | Session CRUD/TTL over existing client |
-| Configuration | MODIFY | DATABASE_URL、REDIS_TTL、SECRET_KEY、DEBUG |
+| Configuration | MODIFY | DATABASE_URL、REDIS_URL、integration URLs、Compose credentials/ports |
 | Dependencies | MODIFY | Pinned Psycopg/Pool、PyJWT、email-validator |
 | Application entry | ADD | FastAPI app/lifespan/router registration |
+| Deployment | ADD | Docker Compose services、private network、health checks、named volumes、env template；不初始化 application schema/table/data |
 | Existing tests | NO CHANGE | Must remain passing; only add regression coverage |
-| External service | NO CHANGE | PostgreSQL and Redis only |
+| External service | MODIFY | PostgreSQL/Redis technology unchanged；execution moves to target-version containers |
 
 ### Backward Compatibility
 
@@ -1007,6 +1165,10 @@ Testing:
   documented `<Uid>:Authorization:JWT` namespace.
 - API is new, so there is no existing User Manager endpoint compatibility burden；public request
   aliases must use the newly confirmed `isForceLogin` and `Permission` names only.
+- Existing host-process defaults remain `localhost`; Docker infrastructure does not force container
+  DNS into non-container execution. A future application container must explicitly override URLs.
+- Existing named volumes are retained across normal Compose shutdown. Compose 不執行 application
+  DDL/DML，因此不會在啟動或重啟時建立、變更或覆寫 application schema/table/data。
 
 ## XI. Open Questions
 
@@ -1022,6 +1184,11 @@ Testing:
 - Failed existing-session login 不回傳 Uid/token、不修改 Redis。
 - 64-character hex password validation、case-sensitive compare、no backend re-hash。
 - HTTP/application error mapping 使用第 4.3 節。
+- Compose 僅建立 PostgreSQL/Redis；FastAPI image/service 留待後續 deployment requirement。
+- Compose 不掛載或執行 `TB_USERS.sql`；application database schema/table/data initialization
+  與 migration strategy 留待後續 requirement。
+- Redis container 啟用 password authentication；local template 使用 `progresql`，實際
+  production value 必須由部署環境覆寫。
 
 ## XII. Testing Strategy
 
@@ -1035,6 +1202,9 @@ Testing:
 - Controller：exact path/method/envelope、error mapping、dependency override。
 - Lifecycle：PostgreSQL/Redis 正常與部分啟動失敗都會釋放資源。
 - Integration：PostgreSQL 17 DDL/constraints 與 Redis 8.1.0 TTL behavior。
+- Deployment：Compose config validation、service health/version、Redis authentication、
+  PostgreSQL persistent schema 無 application table、named-volume persistence、host
+  integration URLs。
 - Regression：現有 `tests/models/schemas/test_authorization.py`、
   `tests/config/test_settings.py`、`tests/config/test_redis.py` 全數通過。
 - 測試互相獨立，不依賴執行順序；Database/Redis unit tests mock external boundary。
@@ -1058,21 +1228,21 @@ Testing:
 - [x] Frontend-encrypted password format 已確認為 64-character hex。
 - [x] DEBUG authentication/authorization boundary 已定義。
 - [x] Dependency 與 Python 3.14 compatibility 已確認並 pin version。
-- [x] Implementation Plan 已完成人工審核。
+- [x] 本次 Docker Compose Plan Update 已完成人工審核。
 
 ## XIV. Review Status and Handoff
 
-- [x] Implementation Plan 已完成人工審核
-- [x] Development 完成
+- [x] 本次 Docker Compose Plan Update 已完成人工審核
+- [ ] TASK-011 Development 完成
 - [ ] Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent for updated DATABASE_URL default and review-fix validation
-Next Handoff: Environment Owner for PostgreSQL 17 / Redis 8.1 integration access
-Implementation Scope: User Manager register/login/logout/list/permission APIs
-Review Fix Result: Production and unit-test issues addressed
-Test Result: 192 passed, 2 integration tests skipped without target environment
-Environment Finding: local Redis is 7.4.11; PostgreSQL rejects the configured
-                     progresql/progresql localhost credentials
+Current Handoff: PM / Plan Reviewer for Docker Compose plan review
+Next Handoff: Programmer Agent for TASK-011 after plan approval
+Implementation Scope: PostgreSQL 17 / Redis 8.1.0 Compose infrastructure and env integration
+Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
+                       normal cleanup must preserve named volumes; no application DDL/DML bootstrap
+Existing Test Result: 192 passed, 2 integration tests skipped without target environment
+Expected Unblock: TASK-011 supplies the target services required by TASK-003/TASK-004 integration
 Do Not Modify: Features/Document requirements, completed Authorization behavior, unrelated code
 ```
