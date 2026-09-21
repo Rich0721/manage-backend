@@ -1,0 +1,28 @@
+flowchart TD
+
+    %% Nodes
+        StartPoint(取得使用者資料流程開始)
+        EndPoint(取得使用者資料流程結束)
+        ReceiveInformation(接收使用者資訊)
+        IsLogin{使用者是否已登入}
+        ReturnLoginError(回傳登入錯誤訊息)
+        ValidateInformation{驗證使用者資訊}
+        ReturnPermissionError(回傳權限錯誤訊息)
+        GetUsers(取得使用者資料)
+        GetManager(取得管理者資料)
+
+        
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> IsLogin
+    IsLogin --> |已登入| ValidateInformation
+    IsLogin --> |未登入| ReturnLoginError
+    ReturnLoginError --> EndPoint
+    ValidateInformation --> |權限為User| ReturnPermissionError
+    ReturnPermissionError --> EndPoint
+    ValidateInformation --> |權限為Manager| GetUsers
+    ValidateInformation --> |權限為Admin| GetManager
+    GetManager --> GetUsers
+    GetUsers --> EndPoint
+    
