@@ -2,6 +2,10 @@
 
 Status: OPEN
 
+Review Fix Validation (2026-09-21): Repository methods、PO mapping、error mapping、transaction
+commit/rollback，以及 PostgreSQL 17 integration 已補強；但原 Review Issue 的 constraint
+coverage 尚未全部完成，因此維持 `OPEN`。
+
 ## Task ID
 
 TASK-003
@@ -32,6 +36,14 @@ rollback 與 PostgreSQL integration tests 大量缺漏。
    filter、transaction commit/rollback 與 mid-update failure 未測試。
 3. DDL 未依 Plan 在 PostgreSQL 17 執行並驗證 primary key、unique Email、password
    pattern、permission check 與 NOT NULL constraints。
+
+## Remaining Issue After Review Fix
+
+`tests/integration/test_user_manager_integration.py:52-94` 已驗證 unique Email、password
+pattern、permission check 與 `user_name` NOT NULL，但仍未驗證 duplicate primary key，亦未
+涵蓋 `uid`、`email`、`password`、`permission`、`created_at`、`updated_at` 的 NOT NULL
+constraints。這些項目屬於原 Review Issue 與 TASK-003 Testing 定義的 DDL constraint
+regression coverage。
 
 ## Expected Behavior
 

@@ -1,6 +1,9 @@
 # TASK-010 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): 五個 route 均已套用 endpoint-specific response model，
+success/error envelope、Authorization header 同步及 lifespan cleanup 均已驗證。
 
 ## Task ID
 
@@ -52,7 +55,7 @@ HTTP/application mapping 都應有 controller-level regression test。
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

@@ -1,6 +1,9 @@
 # TASK-005 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): registration normal、validation、unique race、database
+failure、Uid/timestamp payload 與 confirmPassword 邊界均已驗證，原 Issue 已解決。
 
 ## Task ID
 
@@ -41,7 +44,7 @@ Registration 的正常、business error、unique race 與 infrastructure error p
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

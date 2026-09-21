@@ -1,6 +1,9 @@
 # TASK-007 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): delete count 已保留並區分 normal/debug 行為，
+missing session、Redis failure、missing user 與 race-delete-zero 已驗證，原 Issue 已解決。
 
 ## Task ID
 
@@ -46,7 +49,7 @@ Normal logout 只有在 validated session 確實刪除時才能成功；DEBUG by
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

@@ -3,10 +3,10 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Development Complete - Awaiting Code Review
+Plan Status: Code Review Failed - Review Fix Required
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-09-21
-Implementation Gate: CODE REVIEW REQUIRED
+Implementation Gate: REVIEW FIX REQUIRED
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -547,21 +547,21 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-005 | User Registration | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-006 | User Login | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-007 | User Logout | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-008 | User Data Query | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-009 | Permission Management | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 | 2026-09-21 |
-| TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
+| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-003 | Users Table and Repository | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-005 | User Registration | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-006 | User Login | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
 
-Review Fix、Docker Compose infrastructure、target-version integration validation 與
-Regression Test 已完成。TASK-003、TASK-004、TASK-011 均回到 `DEVELOPED DONE`，等待
-Code Review Agent 驗證；既有已完成 Task 未因 deployment scope 而重做。
+Code Review 已完成。TASK-001、TASK-002、TASK-004 至 TASK-010 通過；TASK-003 與
+TASK-011 仍有測試覆蓋及 environment 文件一致性問題，狀態改為 `REVIEW FIX`，交由
+Programmer Agent 修正。
 
 ## IX. Implementation Steps
 
@@ -1237,8 +1237,8 @@ Testing:
 - [ ] Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent for TASK-003 / TASK-004 / TASK-011 validation
-Next Handoff: None until Code Review result
+Current Handoff: Programmer Agent for TASK-003 / TASK-011 review fixes
+Next Handoff: Code Review Agent after both tasks return to DEVELOPED DONE
 Implementation Scope: PostgreSQL 17 / Redis Server 8.10.1 Compose infrastructure and env integration
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
                        normal cleanup must preserve named volumes; no application DDL/DML bootstrap

@@ -1,6 +1,9 @@
 # TASK-006 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): login database/Redis/token failure、force replacement、
+TTL/JWT claims 與 error envelope 邊界均已有測試覆蓋，原 Issue 已解決。
 
 ## Task ID
 
@@ -42,7 +45,7 @@ Login 所有 infrastructure failure 都應有明確 domain mapping 與 controlle
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

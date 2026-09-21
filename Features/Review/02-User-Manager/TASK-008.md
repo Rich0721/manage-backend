@@ -1,6 +1,9 @@
 # TASK-008 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): admin/manager/user、empty result、missing operator、
+repository/session/refresh failure 與 refresh timing 均已驗證，原 Issue 已解決。
 
 ## Task ID
 
@@ -42,7 +45,7 @@ refresh 只發生於成功路徑。
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

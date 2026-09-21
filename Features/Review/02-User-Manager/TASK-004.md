@@ -1,6 +1,9 @@
 # TASK-004 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): missing session 與 Redis infrastructure error 已分流，
+JWT、DEBUG、refresh 與 Redis failure paths 均已有對應測試，原 Issue 已解決。
 
 ## Task ID
 
@@ -52,7 +55,7 @@ Session state loss 與 Redis infrastructure failure 必須保持不同 domain er
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。

@@ -1,6 +1,9 @@
 # TASK-009 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): permission matrix、admin target、batch validation、
+updated_at、transaction commit/rollback 與 failure paths 均已測試，原 Issue 已解決。
 
 ## Task ID
 
@@ -43,7 +46,7 @@ mixed valid/invalid batch、database failure rollback、updated_at 與 no-write-
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。
