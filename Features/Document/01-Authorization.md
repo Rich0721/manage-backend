@@ -44,6 +44,13 @@ Authorization 欄位已JWT（JSON Web Token）格式返回，用於後續請求�
 如果開發者啟動後端為`PRODUCTION`模式，則每次請求都必須提供有效的 Authorization 欄位，以確保安全性。
 
 JWT會透過Redis暫存於伺服器端，如果使用者在不同裝置登入，相關邏輯會由另外的需求處理
-- Key: <Uid>:Authorization:JWT
-- Value: <JWT Token>
-- TTL: Now() + 600秒，如果有進行相關操作，則會延長有效期限
+- Key: <Uid>:login
+- Value: <Bearer Token>
+- TTL: Now() + 300秒，如果有進行相關操作，則會延長有效期限
+- 相關秒數設定透過os.getEnv("REDIS_TTL")獲取，若未設定則默認為300秒
+- SECRET_KEY: 用於JWT簽名的密鑰，使用os.getENV("SECRET_KEY")獲取，固定值`qnrvFRpZTs0b9oHDw8Ss95WkLx403l6xZHTvN7unQB1`，PRODUCTION環境需從環境變數中獲取透過Docker up時傳入。
+
+### 2-3. DEBUG模式
+如果os.getEnv("DEBUG")為true，則後端運行在DEBUG模式下
+- 如果Authorization 欄位不存在，則不進行驗證。
+- 如果Authorization 欄位存在，則進行正常的驗證。
