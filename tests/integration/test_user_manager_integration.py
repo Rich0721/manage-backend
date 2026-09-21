@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -32,30 +33,42 @@ async def test_postgresql_17_ddl_and_constraints() -> None:
             1,
         )
         await connection.execute(ddl)
-        await connection.execute(
-            """
+        timestamp = datetime(2026, 1, 1)
+        insert_query = """
             INSERT INTO tb_users (
                 uid, email, user_name, password, permission,
                 created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP,
-                      CURRENT_TIMESTAMP)
-            """,
-            (
-                "u" * 64,
-                "valid@example.com",
-                "Valid",
-                "A" * 64,
-                "user",
-            ),
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        valid_row = (
+            "u" * 64,
+            "valid@example.com",
+            "Valid",
+            "A" * 64,
+            "user",
+            timestamp,
+            timestamp,
         )
+        await connection.execute(insert_query, valid_row)
 
         invalid_rows = [
+            (
+                "u" * 64,
+                "duplicate-uid@example.com",
+                "Duplicate Uid",
+                "A" * 64,
+                "user",
+                timestamp,
+                timestamp,
+            ),
             (
                 "v" * 64,
                 "valid@example.com",
                 "Duplicate",
                 "A" * 64,
                 "user",
+                timestamp,
+                timestamp,
             ),
             (
                 "w" * 64,
@@ -63,6 +76,8 @@ async def test_postgresql_17_ddl_and_constraints() -> None:
                 "Password",
                 "invalid",
                 "user",
+                timestamp,
+                timestamp,
             ),
             (
                 "x" * 64,
@@ -70,28 +85,21 @@ async def test_postgresql_17_ddl_and_constraints() -> None:
                 "Role",
                 "A" * 64,
                 "owner",
-            ),
-            (
-                "y" * 64,
-                "null@example.com",
-                None,
-                "A" * 64,
-                "user",
+                timestamp,
+                timestamp,
             ),
         ]
+        for null_index in range(len(valid_row)):
+            null_row = list(valid_row)
+            null_row[0] = f"null-{null_index}"
+            null_row[1] = f"null-{null_index}@example.com"
+            null_row[null_index] = None
+            invalid_rows.append(tuple(null_row))
+
         for row in invalid_rows:
             with pytest.raises(IntegrityError):
                 async with connection.transaction():
-                    await connection.execute(
-                        """
-                        INSERT INTO tb_users (
-                            uid, email, user_name, password, permission,
-                            created_at, updated_at
-                        ) VALUES (%s, %s, %s, %s, %s,
-                                  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        """,
-                        row,
-                    )
+                    await connection.execute(insert_query, row)
     finally:
         await connection.close()
 
