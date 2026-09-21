@@ -9,8 +9,8 @@ Header說明請參考[HTTP Header](01-Header.md)文檔。
 
 ### 2-1. 使用者註冊
 
-Flow Chat: [使用者註冊流程圖](flows/02-User-Manager_Register.mmd)
-Gherkin: [使用者註冊情境文件](scenarios/02-User-Manager_Register.feature)
+Flow Chart: [使用者註冊流程圖](flows/02-User-Manager/02-User-Manager_Register.mmd)
+Gherkin: [使用者註冊情境文件](scenarios/02-User-Manager/02-User-Manager_Register.feature)
 METHOD: POST
 uri: /userController/register
 
@@ -60,8 +60,8 @@ uri: /userController/register
 
 
 ### 2-2. 使用者登入
-Flow Chat: [使用者登入流程圖](flows/02-User-Manager_Login.mmd)
-Gherkin: [使用者登入情境文件](scenarios/02-User-Manager_Login.feature)
+Flow Chart: [使用者登入流程圖](flows/02-User-Manager/02-User-Manager_Login.mmd)
+Gherkin: [使用者登入情境文件](scenarios/02-User-Manager/02-User-Manager_Login.feature)
 METHOD: POST
 uri: /userController/login
 
@@ -120,7 +120,7 @@ uri: /userController/login
 | 欄位 | 型別 | 說明 | 
 | --- | --- | --- |
 | userName | string | 使用者名稱 |
-| needForceLogin | boolean | 是否需要使用者強制重新登入 |
+| isForceLogin | boolean | 是否需要使用者強制重新登入 |
 
 #### 2-2-5. 使用者操作
 使用者於前端填寫登入表單，包含*Email*及*Password*欄位，並提交表單以完成登入操作。
@@ -131,7 +131,7 @@ uri: /userController/login
 - 驗證*Password*是否正確
 - 登入成功後都需要檢查Redis中是否存在對應的`<uid>:login` key，確認屬於`情境1`或`情境2`。
 - `情境1`時，系統直接於Redis配置`<uid>:login` key，並將`Authorization`資訊作為value，TTL為600秒。
-- `情境2`時，則表示該使用者已在其他裝置登入，如果使用者選擇強制登入，則需要於對應的`<uid>:login` key，放入新的`Authorization`資訊，並重新設定TTL為600秒。
+- `情境2`時，則表示該使用者已在其他裝置登入，如果`isForceLogin`為true，則需要於對應的`<uid>:login` key，放入新的`Authorization`資訊，並重新設定TTL為600秒。
 
 
 #### 2-2-7. Technical Requirements
@@ -140,6 +140,8 @@ uri: /userController/login
 
 
 ### 2-3. 使用者登出
+Flow Chart: [使用者登出流程圖](flows/02-User-Manager/02-User-Manager_Logout.mmd)
+Gherkin: [使用者登出情境文件](scenarios/02-User-Manager/02-User-Manager_Logout.feature)
 METHOD: POST
 uri: /userController/logout
 
@@ -184,8 +186,8 @@ uri: /userController/logout
 - 需於Redis中找尋對應的`<uid>:login`key，取出對應的Value並且跟`Authorization`中的資訊進行比對，如果一致則刪除該key，完成登出操作，否則登出失敗。
 
 ### 2-4. 取得使用者資料
-Flow Chat:
-Gherkin: 
+Flow Chart: [取得使用者資料流程圖](flows/02-User-Manager/02-User-Manager_GetUsers.mmd)
+Gherkin: [取得使用者資料情境文件](scenarios/02-User-Manager/02-User-Manager_GetUsers.feature)
 METHOD: POST
 uri: /userController/getUsers
 
@@ -235,8 +237,8 @@ uri: /userController/getUsers
 
 
 ### 2-5. 使用者權限管理
-Flow Chat: [使用者權限管理流程圖](flows/01-User-Manager_Permission.mmd)
-Gherkin: [使用者權限管理情境文件](scenarios/01-User-Manager_Permission.feature)
+Flow Chart: [使用者權限管理流程圖](flows/02-User-Manager/02-User-Manager_Permission.mmd)
+Gherkin: [使用者權限管理情境文件](scenarios/02-User-Manager/02-User-Manager_Permission.feature)
 Method: PUT
 uri: /userController/updatePermission
 
