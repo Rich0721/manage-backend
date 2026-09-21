@@ -1,7 +1,14 @@
 import pytest
 
 from src.config.settings import DEFAULT_REDIS_URL
+from src.config.settings import DEFAULT_REDIS_TTL
 from src.config.settings import Settings
+
+
+@pytest.fixture(autouse=True)
+def required_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://localhost/test")
+    monkeypatch.setenv("DEBUG", "true")
 
 
 def test_redis_url_uses_local_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,3 +50,43 @@ def test_redis_url_credentials_are_not_exposed_in_errors(
 
     assert credential_value not in str(error.value)
 
+
+def test_production_requires_secret_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="SECRET_KEY must not be empty"):
+        Settings()
+
+
+def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "")
+
+    with pytest.raises(ValueError, match="DATABASE_URL must not be empty"):
+        Settings()
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "not-an-integer"])
+def test_redis_ttl_must_be_positive_integer(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    monkeypatch.setenv("REDIS_TTL", value)
+
+    with pytest.raises(ValueError, match="REDIS_TTL must be a positive integer"):
+        Settings()
+
+
+def test_redis_ttl_uses_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("REDIS_TTL", raising=False)
+
+    assert Settings().REDIS_TTL == DEFAULT_REDIS_TTL
+
+
+def test_debug_rejects_ambiguous_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEBUG", "yes")
+
+    with pytest.raises(ValueError, match="DEBUG must be true or false"):
+        Settings()
