@@ -36,7 +36,7 @@ class Settings(object):
         if not database_url.strip():
             raise ValueError("DATABASE_URL must not be empty")
 
-        debug = _parse_bool("DEBUG", "false")
+        debug = _parse_bool("DEBUG", "true")
         secret_key = os.getenv(
             "SECRET_KEY",
             DEFAULT_DEBUG_SECRET_KEY if debug else "",
