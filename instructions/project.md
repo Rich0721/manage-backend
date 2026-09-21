@@ -8,7 +8,8 @@
 - Programming Language: Python 3.14
 - Framework: FastAPI 0.141.1
 - PostgreSQL 17
-- Redis 8.1.0
+- Redis Server 8.10.1
+- Redis Python Client 8.1.0
 
 ## Environment
 1. Python開發環境請使用虛擬環境`venv`進行開發，並且確保依賴套件已安裝且都有寫入`requirements.txt`。
