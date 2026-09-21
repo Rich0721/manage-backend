@@ -3,10 +3,10 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Development Completed
+Plan Status: Code Review Failed
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-09-21
-Implementation Gate: READY FOR CODE REVIEW
+Implementation Gate: REVIEW FIX REQUIRED
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -470,19 +470,19 @@ to avoid constructor auto-open warnings/future incompatibility。Programmer 仍�
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-005 | User Registration | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-006 | User Login | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-007 | User Logout | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-008 | User Data Query | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-009 | Permission Management | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-21 |  |
+| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-003 | Users Table and Repository | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-005 | User Registration | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-006 | User Login | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-007 | User Logout | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-008 | User Data Query | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-009 | Permission Management | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | REVIEW FIX | 2026-09-21 | 2026-09-21 |
 
-所有 Task 已依最新 Requirement 完成實作與測試，目前為 `DEVELOPED DONE`，
-Implementation Gate 已轉為 `READY FOR CODE REVIEW`。
+所有 Task 已完成初次 Code Review；目前存在 OPEN Review Issue，狀態已轉為
+`REVIEW FIX`，Implementation Gate 為 `REVIEW FIX REQUIRED`。
 
 ## IX. Implementation Steps
 
@@ -1058,9 +1058,10 @@ Testing:
 - [ ] Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent
-Next Handoff: Programmer Agent only when a task is marked REVIEW FIX
+Current Handoff: Programmer Agent for Review Fix
+Next Handoff: Code Review Agent after tasks return to DEVELOPED DONE
 Implementation Scope: User Manager register/login/logout/list/permission APIs
-Test Result: 98 passed
+Review Result: FAILED - see Features/Review/02-User-Manager/
+Test Result: 98 passed, but required coverage and functional issues remain
 Do Not Modify: Features/Document requirements, completed Authorization behavior, unrelated code
 ```
