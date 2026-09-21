@@ -1,10 +1,11 @@
 # TASK-003 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 Review Fix Validation (2026-09-21): Repository methods、PO mapping、error mapping、transaction
-commit/rollback，以及 PostgreSQL 17 integration 已補強；但原 Review Issue 的 constraint
-coverage 尚未全部完成，因此維持 `OPEN`。
+commit/rollback，以及 PostgreSQL 17 integration 均已驗證。Integration test 現已分別覆蓋
+duplicate primary key、unique Email、password/permission CHECK 與全部 NOT NULL constraints，
+原 Review Issue 已解決。
 
 ## Task ID
 
@@ -59,7 +60,7 @@ regression coverage。
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
-等待 Programmer Agent 完成修正後重新審查。
+Code Review Agent 已完成修正驗證。

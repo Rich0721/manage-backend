@@ -1,6 +1,10 @@
 # TASK-011 Code Review
 
-Status: OPEN
+Status: RESOLVED
+
+Review Fix Validation (2026-09-21): `.env.example` 已分別記錄 host-process 與 future
+container-network URLs，失效指向已移除；最新 Plan 要求的 README 操作說明亦已完成。
+Compose、真實 integration、credential isolation 與無 application table bootstrap 均驗證通過。
 
 ## Task ID
 
@@ -49,7 +53,7 @@ Tracked environment template 應同時清楚區分 host-process 與 future conta
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
-等待 Programmer Agent 完成修正後重新審查。
+Code Review Agent 已完成修正驗證。
