@@ -1,4 +1,5 @@
 fastapi==0.141.1
+uvicorn==0.53.0
 redis==8.1.0
 psycopg[binary]==3.3.6
 psycopg-pool==3.3.2
