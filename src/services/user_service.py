@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
 from src.config.settings import Settings
 from src.constants.user import UserRole
@@ -268,4 +267,4 @@ class UserService(object):
 
     @staticmethod
     def __utc_now() -> datetime:
-        return datetime.now(timezone.utc).replace(tzinfo=None)
+        return datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)

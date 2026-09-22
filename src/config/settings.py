@@ -2,9 +2,9 @@ import os
 
 
 DEFAULT_DATABASE_URL = (
-    "postgresql://progresql:progresql@localhost:5432/progresql"
+    "postgresql://progresql:progresql@127.0.0.1:5432/progresql"
 )
-DEFAULT_REDIS_URL = "redis://localhost:6379/0"
+DEFAULT_REDIS_URL = "redis://default:progresql@127.0.0.1:6379/0"
 DEFAULT_REDIS_TTL = 300
 DEFAULT_DEBUG_SECRET_KEY = (
     "284568295f471f6ab68edc47fd831b709c0baafd697784d69b964d7cfe3f8f19"

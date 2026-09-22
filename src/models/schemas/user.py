@@ -76,7 +76,7 @@ class EmptyInfo(BaseModel):
 
 
 class PermissionUpdateItem(_EmailInfo):
-    permission: UserRole = Field(alias="Permission")
+    permission: UserRole = Field(alias="permission")
 
 
 class UpdatePermissionRequestInfo(RootModel[list[PermissionUpdateItem]]):

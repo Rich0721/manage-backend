@@ -79,3 +79,11 @@ wsl.exe -d Ubuntu-24.04 -- docker compose --env-file .env down
 ```powershell
 wsl.exe -d Ubuntu-24.04 -- docker compose --env-file .env down -v
 ```
+
+## 啟動後端服務
+
+啟動後端服務並確認其運行狀態：
+
+```bash
+.\.venv\Scripts\python.exe -m uvicorn src.main:app --reload
+```
