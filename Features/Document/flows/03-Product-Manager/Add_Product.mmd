@@ -1,0 +1,18 @@
+flowchart TD
+    %% Nodes
+    StartPoint(新增產品流程開始)
+    EndPoint(新增產品流程結束)
+    ReceiveInformation(Request Information)
+    ValidateInformation{驗證使用者登入資訊}
+    ReturnError(返回錯誤訊息)
+    InsertProduct(新增產品)
+    UpdateRedis(更新 Redis)
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| InsertProduct
+    ValidateInformation --> |資訊驗證失敗| ReturnError
+    ReturnError --> EndPoint
+    InsertProduct --> UpdateRedis
+    UpdateRedis --> EndPoint
