@@ -68,15 +68,175 @@ uri: /productController/addProduct
 ### 2-1-7. Technical Requirements
 - `product:labels`沒有過期時間，但須要避免多人使用時出現資料不一致的情況，建議在更新Redis時使用分布式鎖。
 - `product:info`的更新也應使用分布式鎖，以避免多人同時更新時出現資料不一致的情況。
+- 需更新Redis中的`<uid>:login`到期時間。
 
 ### 2-2. 取得產品
+Flow Chart:
+Gherkin:
+METHOD: POST
+uri: /productController/product
+
+### 2-2-1. Request Body Authorization
+
+此物件包含取得產品所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫。
+
+### 2-2-2. Request Body Information Object
+
+此物件包含取得產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+
+### 2-2-3. Response Body Authorization
+
+此物件包含取得使用者登入資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
+| Status | Message | 條件 |
+| --- | --- | --- |
+| 200 | OK | 取得產品成功 |
+| 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+
+### 2-2-4. Response Body Information Object
+
+此物件包含取得產品後返回的資訊，需繼承自`Response Information`物件，以利Response Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+| name | string | 產品名稱 |
+| label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
+| cost | number | 產品成本 |
+| price | number | 產品價格 |
 
 ### 2-3. 編輯產品
+Flow Chart:
+Gherkin:
+METHOD: PUT
+uri: /productController/updateProduct
+
+### 2-3-1. Request Body Authorization
+
+此物件包含取得產品所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫。
+
+### 2-3-2. Request Body Information Object
+
+此物件包含取得產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+| name | string | 產品名稱 |
+| label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
+| cost | number | 產品成本 |
+| price | number | 產品價格 |
+
+### 2-3-3. Response Body Authorization
+
+此物件包含取得使用者登入資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
+| Status | Message | 條件 |
+| --- | --- | --- |
+| 200 | OK | 取得產品成功 |
+| 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+
+### 2-3-4. Response Body Information Object
+
+此物件包含取得產品後返回的資訊，需繼承自`Response Information`物件，以利Response Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+| name | string | 產品名稱 |
+| label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
+| cost | number | 產品成本 |
+| price | number | 產品價格 |
+
 
 ### 2-4. 刪除產品
+Flow Chart:
+Gherkin:
+METHOD: DELETE
+uri: /productController/deleteProduct
+
+### 2-4-1. Request Body Authorization
+
+此物件包含取得產品所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫。
+
+### 2-4-2. Request Body Information Object
+
+此物件包含取得產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+
+### 2-4-3. Response Body Authorization
+
+此物件包含取得使用者登入資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
+| Status | Message | 條件 |
+| --- | --- | --- |
+| 200 | OK | 刪除產品成功 |
+| 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+
+### 2-4-4. Response Body Information Object
+
+此物件包含取得產品後返回的資訊，需繼承自`Response Information`物件，以利Response Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | string | 產品ID |
+| name | string | 產品名稱 |
+| label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
+| cost | number | 產品成本 |
+| price | number | 產品價格 |
 
 ### 2-5. 取得產品列表
+Flow Chart:
+Gherkin:
+METHOD: POST
+uri: /productController/products
 
+### 2-5-1. Request Body Authorization
+
+此物件包含取得產品所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫。
+
+### 2-5-2. Request Body Information Object
+
+此物件包含取得產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| uid | string | 使用者ID |
+
+### 2-5-3. Response Body Authorization
+
+此物件包含取得使用者登入資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
+| Status | Message | 條件 |
+| --- | --- | --- |
+| 200 | OK | 取得產品成功 |
+| 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+
+### 2-5-4. Response Body Information Object
+
+此物件包含取得多個產品後返回的資訊，需繼承自`Response Information`物件，以利Response Body的結構化，通常會以陣列的形式返回多個產品資訊。
+
+| 欄位         | 型別      | 說明 |
+| ------------ | -------- | --- |
+| id           | string   | 產品ID |
+| name         | string   | 產品名稱 |
+| label_names  | string   | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
+| cost         | number   | 產品成本 |
+| price        | number   | 產品價格 |
+| delete_flag  | boolean  | 刪除標誌, default false |
+| updated_user | string   | 更新用戶 |
+| updated_at   | datetime | 更新時間 |
 
 ## III. 其他資訊
 
