@@ -13,7 +13,7 @@ Feature: 新增產品
       Then 回應狀態碼應為 401
       And 回應訊息應為 "Unauthorized"
       And 系統不應新增資料至 "tb_products"
-      And 系統不應更新 Redis 中的 "product:info"
+      And 系統不應更新 Redis 中的 "products:info"
 
 
     Scenario Outline: Authorization 無效時新增產品失敗
@@ -25,7 +25,7 @@ Feature: 新增產品
       Then 回應狀態碼應為 401
       And 回應訊息應為 "Unauthorized"
       And 系統不應新增資料至 "tb_products"
-      And 系統不應更新 Redis 中的 "product:info"
+      And 系統不應更新 Redis 中的 "products:info"
 
       Examples:
         | authorization_status |
@@ -70,7 +70,7 @@ Feature: 新增產品
         | 2  | label2 |
       And 新增至 "tb_products" 的產品其 "label_ids" 應為 "1,2"
       And 回應狀態碼應為 200
-      And Redis 中的 "product:info" 應包含新增的產品
+      And Redis 中的 "products:info" 應包含新增的產品
 
 
     Scenario: Redis 找不到指定標籤時重新載入標籤
@@ -93,7 +93,7 @@ Feature: 新增產品
         | 4  | label4 |
       And 新增至 "tb_products" 的產品其 "label_ids" 應為 "3,4"
       And 回應狀態碼應為 200
-      And Redis 中的 "product:info" 應包含新增的產品
+      And Redis 中的 "products:info" 應包含新增的產品
 
 
     Scenario: 重新載入標籤後仍找不到指定標籤時新增產品失敗
@@ -110,7 +110,7 @@ Feature: 新增產品
       And 回應狀態碼應為 400
       And 回應訊息應為 "Product label does not exist"
       And 系統不應新增資料至 "tb_products"
-      And 系統不應更新 Redis 中的 "product:info"
+      And 系統不應更新 Redis 中的 "products:info"
 
 
   Rule: 成功建立產品
@@ -136,5 +136,5 @@ Feature: 新增產品
       And 回應應包含以下產品資訊
         | id            | name         | label_names   | cost | price |
         | 1710000000123 | test product | label1,label2 | 100  | 150   |
-      And Redis 中的 "product:info" 應包含產品 "1710000000123"
+      And Redis 中的 "products:info" 應包含產品 "1710000000123"
       And Redis 中產品 "1710000000123" 的資料應與 "tb_products" 一致

@@ -1,0 +1,31 @@
+flowchart TD
+    %% Nodes
+    StartPoint(取得產品流程開始)
+    EndPoint(取得產品流程結束)
+    ReceiveInformation(Request Information)
+    ValidateInformation{驗證使用者登入資訊}
+    ReturnError(返回錯誤訊息)
+    CheckRedisByKey{檢查 Redis 是否有對應的產品}
+    GetProductsFromDb(從資料庫取得產品)
+    UpdateRedis(更新 Redis)
+    GetProductsByRedis(從 Redis 取得產品)
+    CheckIds{檢查ID}
+    GetAllProducts(取得所有產品)
+    GetProductById(取得指定產品)
+
+    %% Flow
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation --> |資訊驗證通過| CheckRedisByKey
+    ValidateInformation --> |資訊驗證失敗| ReturnError
+    CheckRedisByKey --> |Key存在| GetProductsByRedis
+    CheckRedisByKey --> |Key不存在| GetProductsFromDb
+    GetProductsFromDb --> UpdateRedis
+    UpdateRedis --> CheckIds
+    GetProductsByRedis --> CheckIds
+    CheckIds --> |ID被設定為`ALL`| GetAllProducts
+    CheckIds --> |ID有被設定| GetProductById
+    CheckIds --> |ID未被設定或找不到對應產品| ReturnError
+    ReturnError --> EndPoint
+    GetAllProducts --> EndPoint
+    GetProductById --> EndPoint
