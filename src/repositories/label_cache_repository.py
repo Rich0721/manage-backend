@@ -2,6 +2,7 @@ import asyncio
 import json
 import secrets
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from contextlib import asynccontextmanager
 
 from redis.asyncio import Redis
@@ -15,8 +16,48 @@ class LabelCacheRepositoryError(Exception):
     pass
 
 
+class LabelCacheLockLease(object):
+    def __init__(
+        self,
+        client: Redis,
+        key: str,
+        token: str,
+        seconds: int,
+    ) -> None:
+        self.__client = client
+        self.__key = key
+        self.__token = token
+        self.__seconds = seconds
+        self.__lost = False
+
+    async def renew(self) -> bool:
+        try:
+            renewed = await self.__client.eval(
+                """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    return redis.call('pexpire', KEYS[1], ARGV[2] * 1000)
+                end
+                return 0
+                """,
+                1,
+                self.__key,
+                self.__token,
+                self.__seconds,
+            )
+        except RedisError as error:
+            self.__lost = True
+            raise LabelCacheRepositoryError from error
+        self.__lost = not bool(renewed)
+        return not self.__lost
+
+    async def ensure_held(self) -> None:
+        if self.__lost or not await self.renew():
+            raise LabelCacheRepositoryError
+
+
 class LabelCacheRepository(object):
     _LOCK_SECONDS = 10
+    _LOCK_RENEW_SECONDS = 3
     _LOCK_ATTEMPTS = 20
     _LOCK_RETRY_SECONDS = 0.05
 
@@ -24,7 +65,7 @@ class LabelCacheRepository(object):
         self.__client = client
 
     @asynccontextmanager
-    async def lock(self) -> AsyncIterator[None]:
+    async def lock(self) -> AsyncIterator[LabelCacheLockLease]:
         token = secrets.token_urlsafe(24)
         acquired = False
         lock_key = f"{ProductCacheKey.LABELS}:lock"
@@ -46,7 +87,19 @@ class LabelCacheRepository(object):
                 await asyncio.sleep(self._LOCK_RETRY_SECONDS)
             if not acquired:
                 raise LabelCacheRepositoryError
-            yield
+            lease = LabelCacheLockLease(
+                self.__client,
+                lock_key,
+                token,
+                self._LOCK_SECONDS,
+            )
+            renewal_task = asyncio.create_task(self.__renew_lease(lease))
+            try:
+                yield lease
+            finally:
+                renewal_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await renewal_task
         finally:
             if acquired:
                 try:
@@ -63,6 +116,12 @@ class LabelCacheRepository(object):
                     )
                 except RedisError as error:
                     raise LabelCacheRepositoryError from error
+
+    async def __renew_lease(self, lease: LabelCacheLockLease) -> None:
+        while True:
+            await asyncio.sleep(self._LOCK_RENEW_SECONDS)
+            if not await lease.renew():
+                return
 
     async def get(self) -> dict[str, tuple[int, str]] | None:
         try:

@@ -84,8 +84,8 @@ async def test_product_and_label_ddl_support_soft_deleted_products() -> None:
 )
 async def test_products_cache_preserves_complete_snapshot() -> None:
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    cache = ProductCacheRepository(client)
     prefix = uuid4().hex
+    cache = ProductCacheRepository(client, f"test:{prefix}:products:info")
     product = Product(
         id="1790705105001",
         name=f"Deleted-{prefix}",

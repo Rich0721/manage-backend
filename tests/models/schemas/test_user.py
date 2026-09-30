@@ -63,14 +63,14 @@ def test_unknown_business_field_is_rejected() -> None:
         )
 
 
-def test_permission_contract_uses_capitalized_alias() -> None:
+def test_permission_contract_uses_lowercase_alias() -> None:
     item = PermissionUpdateItem(
         email="USER@EXAMPLE.COM",
-        Permission="manager",
+        permission="manager",
     )
 
     assert item.permission is UserRole.MANAGER
-    assert item.model_dump(by_alias=True)["Permission"] == UserRole.MANAGER
+    assert item.model_dump(by_alias=True)["permission"] == UserRole.MANAGER
 
 
 def test_permission_request_info_is_json_list() -> None:
@@ -78,7 +78,7 @@ def test_permission_request_info_is_json_list() -> None:
         body={
             "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": [
-                {"email": "user@example.com", "Permission": "user"},
+                {"email": "user@example.com", "permission": "user"},
             ],
         },
     )
@@ -112,7 +112,7 @@ def test_permission_rejects_invalid_role() -> None:
     with pytest.raises(ValidationError):
         PermissionUpdateItem(
             email="user@example.com",
-            Permission="owner",
+            permission="owner",
         )
 
 
@@ -123,6 +123,14 @@ def test_permission_list_rejects_invalid_element() -> None:
                 "auth": {},
                 "info": ["invalid"],
             },
+        )
+
+
+def test_permission_rejects_capitalized_alias() -> None:
+    with pytest.raises(ValidationError):
+        PermissionUpdateItem(
+            email="user@example.com",
+            Permission="manager",
         )
 
 

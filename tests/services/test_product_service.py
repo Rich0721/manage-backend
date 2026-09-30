@@ -27,6 +27,11 @@ class FakeAuthorization(object):
         return None
 
 
+class FakeLease(object):
+    async def ensure_held(self) -> None:
+        return None
+
+
 class FakeUsers(object):
     async def get_by_uid(self, uid: str) -> UserPO:
         return UserPO(
@@ -46,12 +51,16 @@ class FakeProductCache(object):
 
     @asynccontextmanager
     async def products_lock(self):
-        yield
+        yield FakeLease()
 
     async def get_products(self) -> list[Product] | None:
         return self.products
 
-    async def replace_products(self, products: list[Product]) -> None:
+    async def replace_products(
+        self,
+        products: list[Product],
+        label_names_by_id: dict[int, str] | None = None,
+    ) -> None:
         self.products = products
 
     async def invalidate_products(self) -> None:
@@ -59,7 +68,11 @@ class FakeProductCache(object):
 
 
 class FailingProductCache(FakeProductCache):
-    async def replace_products(self, products: list[Product]) -> None:
+    async def replace_products(
+        self,
+        products: list[Product],
+        label_names_by_id: dict[int, str] | None = None,
+    ) -> None:
         raise ProductCacheRepositoryError
 
 
@@ -69,7 +82,7 @@ class FakeLabelCache(object):
 
     @asynccontextmanager
     async def lock(self):
-        yield
+        yield FakeLease()
 
     async def get(self) -> dict[str, tuple[int, str]]:
         return self.labels

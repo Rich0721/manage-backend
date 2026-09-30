@@ -589,7 +589,7 @@ async def test_permission_matrix_allows_manager_to_promote_user() -> None:
 
     await service.update_permissions(
         AuthorizationObject(uid="operator"),
-        [PermissionUpdateItem(email=target.email, Permission="manager")],
+        [PermissionUpdateItem(email=target.email, permission="manager")],
     )
 
     assert users.updated == {target.email: UserRole.MANAGER}
@@ -610,7 +610,7 @@ async def test_manager_cannot_modify_manager() -> None:
     with pytest.raises(PermissionDeniedError):
         await service.update_permissions(
             AuthorizationObject(uid="operator"),
-            [PermissionUpdateItem(email=target.email, Permission="user")],
+            [PermissionUpdateItem(email=target.email, permission="user")],
         )
     assert users.updated == {}
 
@@ -625,8 +625,8 @@ async def test_duplicate_target_is_rejected_before_transaction() -> None:
     users = FakeUserRepository([operator])
     service, _, _ = make_service(users)
     items = [
-        PermissionUpdateItem(email="user@example.com", Permission="user"),
-        PermissionUpdateItem(email="USER@example.com", Permission="manager"),
+        PermissionUpdateItem(email="user@example.com", permission="user"),
+        PermissionUpdateItem(email="USER@example.com", permission="manager"),
     ]
 
     with pytest.raises(DuplicatePermissionTargetError):
@@ -675,7 +675,7 @@ async def test_complete_permission_matrix(
         [
             PermissionUpdateItem(
                 email=target.email,
-                Permission=target_role,
+                permission=target_role,
             ),
         ],
     )
@@ -706,11 +706,11 @@ async def test_permission_update_accepts_multiple_valid_targets() -> None:
         [
             PermissionUpdateItem(
                 email=first.email,
-                Permission=UserRole.MANAGER,
+                permission=UserRole.MANAGER,
             ),
             PermissionUpdateItem(
                 email=second.email,
-                Permission=UserRole.USER,
+                permission=UserRole.USER,
             ),
         ],
     )
@@ -735,7 +735,7 @@ async def test_unknown_permission_target_rolls_back_without_write() -> None:
             [
                 PermissionUpdateItem(
                     email="missing@example.com",
-                    Permission=UserRole.USER,
+                    permission=UserRole.USER,
                 ),
             ],
         )
@@ -763,11 +763,11 @@ async def test_mixed_valid_invalid_permission_batch_rolls_back() -> None:
             [
                 PermissionUpdateItem(
                     email=valid.email,
-                    Permission=UserRole.MANAGER,
+                    permission=UserRole.MANAGER,
                 ),
                 PermissionUpdateItem(
                     email=invalid.email,
-                    Permission=UserRole.USER,
+                    permission=UserRole.USER,
                 ),
             ],
         )
@@ -790,7 +790,7 @@ async def test_permission_database_failure_rolls_back_full_batch() -> None:
             [
                 PermissionUpdateItem(
                     email=target.email,
-                    Permission=UserRole.MANAGER,
+                    permission=UserRole.MANAGER,
                 ),
             ],
         )
@@ -814,7 +814,7 @@ async def test_permission_target_fetch_failure_rolls_back() -> None:
             [
                 PermissionUpdateItem(
                     email=target.email,
-                    Permission=UserRole.MANAGER,
+                    permission=UserRole.MANAGER,
                 ),
             ],
         )

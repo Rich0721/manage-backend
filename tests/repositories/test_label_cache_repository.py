@@ -4,6 +4,7 @@ import pytest
 
 from src.models.po.label import Label
 from src.repositories.label_cache_repository import LabelCacheRepository
+from src.repositories.label_cache_repository import LabelCacheRepositoryError
 
 
 class FakeRedis(object):
@@ -28,9 +29,12 @@ class FakeRedis(object):
         key_count: int,
         key: str,
         token: str,
+        *arguments: object,
     ) -> int:
         if self.values.get(key) != token:
             return 0
+        if "pexpire" in script:
+            return 1
         await self.delete(key)
         return 1
 
@@ -51,6 +55,18 @@ async def test_label_cache_normalizes_names_and_releases_lock() -> None:
     await cache.replace([label])
 
     assert await cache.get() == {"label": (1, " Label ")}
-    async with cache.lock():
+    async with cache.lock() as lease:
         assert "product:labels:lock" in client.values
+        await lease.ensure_held()
     assert "product:labels:lock" not in client.values
+
+
+@pytest.mark.asyncio
+async def test_label_cache_rejects_duplicate_normalized_names() -> None:
+    cache = LabelCacheRepository(FakeRedis())  # type: ignore[arg-type]
+    timestamp = datetime(2026, 1, 1)
+    first = Label(1, "Label", "user", timestamp, "user", timestamp)
+    second = Label(2, " label ", "user", timestamp, "user", timestamp)
+
+    with pytest.raises(LabelCacheRepositoryError):
+        await cache.replace([first, second])

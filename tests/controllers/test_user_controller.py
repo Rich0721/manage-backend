@@ -271,7 +271,7 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
         "body": {
             "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": [
-                {"email": "user@example.com", "Permission": "manager"},
+                {"email": "user@example.com", "permission": "manager"},
             ],
         },
     }
@@ -293,6 +293,20 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
         },
         "info": {},
     }
+
+
+def test_update_permission_rejects_capitalized_field() -> None:
+    payload = {
+        "body": {
+            "auth": {"uid": "uid", "authorization": "Bearer token"},
+            "info": [{"email": "user@example.com", "Permission": "manager"}],
+        },
+    }
+
+    with make_client(AsyncMock()) as client:
+        response = client.put("/userController/updatePermission", json=payload)
+
+    assert response.status_code == 422
 
 
 def test_schema_error_uses_standard_envelope() -> None:

@@ -3,9 +3,13 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from psycopg import OperationalError
+from psycopg.errors import UniqueViolation
 
 from src.models.po.product import Product
+from src.repositories.product_repository import DuplicateProductRecordError
 from src.repositories.product_repository import ProductRepository
+from src.repositories.product_repository import ProductRepositoryError
 
 
 NOW = datetime(2026, 1, 1)
@@ -24,8 +28,13 @@ ROW = {
 
 
 class FakeCursor(object):
-    def __init__(self, rowcount: int = 1) -> None:
+    def __init__(
+        self,
+        rowcount: int = 1,
+        execute_error: Exception | None = None,
+    ) -> None:
         self.rowcount = rowcount
+        self.execute_error = execute_error
         self.executions: list[tuple[str, object]] = []
 
     async def __aenter__(self) -> "FakeCursor":
@@ -35,6 +44,8 @@ class FakeCursor(object):
         return None
 
     async def execute(self, query: str, parameters: object = ()) -> None:
+        if self.execute_error is not None:
+            raise self.execute_error
         self.executions.append((query, parameters))
 
     async def fetchall(self) -> list[dict[str, Any]]:
@@ -44,12 +55,38 @@ class FakeCursor(object):
         return ROW
 
 
+class TransactionContext(object):
+    def __init__(self, connection: "FakeConnection") -> None:
+        self.connection = connection
+
+    async def __aenter__(self) -> "FakeConnection":
+        return self.connection
+
+    async def __aexit__(self, exception_type: object, *args: object) -> None:
+        self.connection.rolled_back = exception_type is not None
+
+
 class FakeConnection(object):
-    def __init__(self, rowcount: int = 1) -> None:
-        self.cursor_value = FakeCursor(rowcount)
+    def __init__(
+        self,
+        rowcount: int = 1,
+        execute_error: Exception | None = None,
+    ) -> None:
+        self.cursor_value = FakeCursor(rowcount, execute_error)
+        self.execute_error = execute_error
+        self.executions: list[tuple[str, object]] = []
+        self.rolled_back = False
 
     def cursor(self, **kwargs: object) -> FakeCursor:
         return self.cursor_value
+
+    def transaction(self) -> TransactionContext:
+        return TransactionContext(self)
+
+    async def execute(self, query: str, parameters: object = ()) -> None:
+        if self.execute_error is not None:
+            raise self.execute_error
+        self.executions.append((query, parameters))
 
 
 class ConnectionContext(object):
@@ -128,3 +165,44 @@ async def test_update_and_soft_delete_require_visible_row(method: str) -> None:
 
     assert not changed
     assert "delete_flag = FALSE" in connection.cursor_value.executions[0][0]
+
+
+@pytest.mark.asyncio
+async def test_insert_uses_parameters_and_maps_duplicate_id() -> None:
+    connection = FakeConnection()
+    repository = ProductRepository(FakePool(connection))  # type: ignore[arg-type]
+
+    assert await repository.insert(make_product(), connection) == make_product()  # type: ignore[arg-type]
+    assert connection.executions[0][1] == (
+        "1790705105001",
+        "Product",
+        "1",
+        Decimal("100.00"),
+        Decimal("150.00"),
+        False,
+        "user",
+        NOW,
+        "user",
+        NOW,
+    )
+
+    duplicate_repository = ProductRepository(
+        FakePool(FakeConnection(execute_error=UniqueViolation()))  # type: ignore[arg-type]
+    )
+    with pytest.raises(DuplicateProductRecordError):
+        await duplicate_repository.insert(
+            make_product(),
+            FakeConnection(execute_error=UniqueViolation()),  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.asyncio
+async def test_repository_error_rolls_back_transaction() -> None:
+    connection = FakeConnection(execute_error=OperationalError())
+    repository = ProductRepository(FakePool(connection))  # type: ignore[arg-type]
+
+    with pytest.raises(ProductRepositoryError):
+        async with repository.transaction() as transaction:
+            await repository.insert(make_product(), transaction)
+
+    assert connection.rolled_back

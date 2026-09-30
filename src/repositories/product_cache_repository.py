@@ -2,6 +2,8 @@ import asyncio
 import json
 import secrets
 from collections.abc import AsyncIterator
+from collections.abc import Mapping
+from contextlib import suppress
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
@@ -17,21 +19,66 @@ class ProductCacheRepositoryError(Exception):
     pass
 
 
+class ProductCacheLockLease(object):
+    def __init__(
+        self,
+        client: Redis,
+        key: str,
+        token: str,
+        seconds: int,
+    ) -> None:
+        self.__client = client
+        self.__key = key
+        self.__token = token
+        self.__seconds = seconds
+        self.__lost = False
+
+    async def renew(self) -> bool:
+        try:
+            renewed = await self.__client.eval(
+                """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    return redis.call('pexpire', KEYS[1], ARGV[2] * 1000)
+                end
+                return 0
+                """,
+                1,
+                self.__key,
+                self.__token,
+                self.__seconds,
+            )
+        except RedisError as error:
+            self.__lost = True
+            raise ProductCacheRepositoryError from error
+        self.__lost = not bool(renewed)
+        return not self.__lost
+
+    async def ensure_held(self) -> None:
+        if self.__lost or not await self.renew():
+            raise ProductCacheRepositoryError
+
+
 class ProductCacheRepository(object):
     _LOCK_SECONDS = 10
+    _LOCK_RENEW_SECONDS = 3
     _LOCK_ATTEMPTS = 20
     _LOCK_RETRY_SECONDS = 0.05
 
-    def __init__(self, client: Redis) -> None:
+    def __init__(
+        self,
+        client: Redis,
+        products_key: str = ProductCacheKey.PRODUCTS,
+    ) -> None:
         self.__client = client
+        self.__products_key = products_key
 
     @asynccontextmanager
-    async def products_lock(self) -> AsyncIterator[None]:
-        async with self.__lock(f"{ProductCacheKey.PRODUCTS}:lock"):
-            yield
+    async def products_lock(self) -> AsyncIterator[ProductCacheLockLease]:
+        async with self.__lock(f"{self.__products_key}:lock") as lease:
+            yield lease
 
     async def get_products(self) -> list[Product] | None:
-        raw_products = await self.__get(ProductCacheKey.PRODUCTS)
+        raw_products = await self.__get(self.__products_key)
         if raw_products is None:
             return None
         try:
@@ -40,30 +87,37 @@ class ProductCacheRepository(object):
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise ProductCacheRepositoryError from error
 
-    async def replace_products(self, products: list[Product]) -> None:
-        values = [self.__product_to_value(product) for product in products]
-        await self.__set(ProductCacheKey.PRODUCTS, json.dumps(values))
+    async def replace_products(
+        self,
+        products: list[Product],
+        label_names_by_id: Mapping[int, str] | None = None,
+    ) -> None:
+        values = [
+            self.__product_to_value(product, label_names_by_id or {})
+            for product in products
+        ]
+        await self.__set(self.__products_key, json.dumps(values))
 
     async def invalidate_products(self) -> None:
         try:
-            await self.__client.delete(ProductCacheKey.PRODUCTS)
+            await self.__client.delete(self.__products_key)
         except RedisError as error:
             raise ProductCacheRepositoryError from error
 
-    async def __get(self, key: ProductCacheKey) -> str | None:
+    async def __get(self, key: str) -> str | None:
         try:
             return await self.__client.get(key)
         except RedisError as error:
             raise ProductCacheRepositoryError from error
 
-    async def __set(self, key: ProductCacheKey, value: str) -> None:
+    async def __set(self, key: str, value: str) -> None:
         try:
             await self.__client.set(key, value)
         except RedisError as error:
             raise ProductCacheRepositoryError from error
 
     @asynccontextmanager
-    async def __lock(self, key: str) -> AsyncIterator[None]:
+    async def __lock(self, key: str) -> AsyncIterator[ProductCacheLockLease]:
         token = secrets.token_urlsafe(24)
         acquired = False
         try:
@@ -84,7 +138,19 @@ class ProductCacheRepository(object):
                 await asyncio.sleep(self._LOCK_RETRY_SECONDS)
             if not acquired:
                 raise ProductCacheRepositoryError
-            yield
+            lease = ProductCacheLockLease(
+                self.__client,
+                key,
+                token,
+                self._LOCK_SECONDS,
+            )
+            renewal_task = asyncio.create_task(self.__renew_lease(lease))
+            try:
+                yield lease
+            finally:
+                renewal_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await renewal_task
         finally:
             if acquired:
                 try:
@@ -102,12 +168,27 @@ class ProductCacheRepository(object):
                 except RedisError as error:
                     raise ProductCacheRepositoryError from error
 
+    async def __renew_lease(self, lease: ProductCacheLockLease) -> None:
+        while True:
+            await asyncio.sleep(self._LOCK_RENEW_SECONDS)
+            if not await lease.renew():
+                return
+
     @staticmethod
-    def __product_to_value(product: Product) -> dict[str, str | bool]:
+    def __product_to_value(
+        product: Product,
+        label_names_by_id: Mapping[int, str],
+    ) -> dict[str, str | bool | list[str]]:
+        label_names = [
+            label_names_by_id[int(label_id)]
+            for label_id in product.label_ids.split(",")
+            if int(label_id) in label_names_by_id
+        ]
         return {
             "id": product.id,
             "name": product.name,
             "label_ids": product.label_ids,
+            "label_names": label_names,
             "cost": str(product.cost),
             "price": str(product.price),
             "delete_flag": product.delete_flag,
@@ -118,7 +199,7 @@ class ProductCacheRepository(object):
         }
 
     @staticmethod
-    def __product_from_value(value: dict[str, str | bool]) -> Product:
+    def __product_from_value(value: Mapping[str, object]) -> Product:
         return Product(
             id=str(value["id"]),
             name=str(value["name"]),

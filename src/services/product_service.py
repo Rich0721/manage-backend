@@ -181,7 +181,8 @@ class ProductService(object):
 
     async def __write_product(self, product: Product, operation: str) -> None:
         try:
-            async with self.__product_cache.products_lock():
+            async with self.__product_cache.products_lock() as lease:
+                await lease.ensure_held()
                 await self.__product_cache.invalidate_products()
                 try:
                     async with self.__products.transaction() as connection:
@@ -193,6 +194,7 @@ class ProductService(object):
                                 raise ProductNotFoundError
                 except DuplicateProductRecordError as error:
                     raise ProductConflictError from error
+                await lease.ensure_held()
                 await self.__replace_product_cache(product.id, operation)
         except (ProductConflictError, ProductNotFoundError):
             raise
@@ -203,7 +205,8 @@ class ProductService(object):
 
     async def __delete_product(self, product: Product) -> None:
         try:
-            async with self.__product_cache.products_lock():
+            async with self.__product_cache.products_lock() as lease:
+                await lease.ensure_held()
                 await self.__product_cache.invalidate_products()
                 async with self.__products.transaction() as connection:
                     deleted = await self.__products.soft_delete(
@@ -214,6 +217,7 @@ class ProductService(object):
                     )
                     if not deleted:
                         raise ProductNotFoundError
+                await lease.ensure_held()
                 await self.__replace_product_cache(product.id, "delete")
         except ProductNotFoundError:
             raise
@@ -225,7 +229,11 @@ class ProductService(object):
     async def __replace_product_cache(self, product_id: str, operation: str) -> None:
         try:
             products = await self.__products.list_all()
-            await self.__product_cache.replace_products(products)
+            labels = await self.__get_labels()
+            label_names_by_id = {
+                label_id: label_name for label_id, label_name in labels.values()
+            }
+            await self.__product_cache.replace_products(products, label_names_by_id)
         except (ProductRepositoryError, ProductCacheRepositoryError):
             LOGGER.exception(
                 "Product cache replacement failed operation=%s product_id=%s",
@@ -239,11 +247,14 @@ class ProductService(object):
             products = await self.__product_cache.get_products()
             if products is not None:
                 return products
-            async with self.__product_cache.products_lock():
+            async with self.__product_cache.products_lock() as lease:
+                await lease.ensure_held()
                 products = await self.__product_cache.get_products()
                 if products is None:
-                    products = await self.__products.list_all()
-                    await self.__product_cache.replace_products(products)
+                    await self.__replace_product_cache("cold-load", "load")
+                    products = await self.__product_cache.get_products()
+                    if products is None:
+                        raise ProductCacheRepositoryError
                 return products
         except ProductRepositoryError as error:
             raise ServiceUnavailableError from error
@@ -265,7 +276,8 @@ class ProductService(object):
             return label_ids
 
         try:
-            async with self.__label_cache.lock():
+            async with self.__label_cache.lock() as lease:
+                await lease.ensure_held()
                 await self.__label_cache.invalidate()
                 labels = await self.__reload_labels()
         except LabelRepositoryError as error:
@@ -282,7 +294,8 @@ class ProductService(object):
             labels = await self.__label_cache.get()
             if labels is not None:
                 return labels
-            async with self.__label_cache.lock():
+            async with self.__label_cache.lock() as lease:
+                await lease.ensure_held()
                 labels = await self.__label_cache.get()
                 if labels is None:
                     labels = await self.__reload_labels()
