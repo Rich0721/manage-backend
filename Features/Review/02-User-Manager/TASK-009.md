@@ -5,6 +5,8 @@ Status: RESOLVED
 Review Fix Validation (2026-09-21): permission matrix、admin target、batch validation、
 updated_at、transaction commit/rollback 與 failure paths 均已測試，原 Issue 已解決。
 
+2026-09-30 複審：權限 Service 測試已改用小寫 `permission`，角色矩陣、批次交易及 rollback 斷言保留；完整回歸通過。狀態維持 RESOLVED。
+
 ## Task ID
 
 TASK-009

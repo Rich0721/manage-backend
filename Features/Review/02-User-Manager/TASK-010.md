@@ -1,6 +1,6 @@
 # TASK-010 Code Review
 
-Status: RESOLVED
+Status: OPEN
 
 Review Fix Validation (2026-09-21): 五個 route 均已套用 endpoint-specific response model，
 success/error envelope、Authorization header 同步及 lifespan cleanup 均已驗證。
@@ -55,7 +55,11 @@ HTTP/application mapping 都應有 controller-level regression test。
 ## Resolution
 
 ```text
-Status: RESOLVED
+Status: OPEN
 ```
 
 等待 Programmer Agent 完成修正後重新審查。
+
+## 2026-09-30 複審
+
+- **P2／缺少契約斷言：** `tests/controllers/test_user_controller.py` 的 `test_update_permission_rejects_capitalized_field()` 只檢查 HTTP 422，沒有檢查回應的標準 `body.auth` 狀態、訊息及 `body.info.errors`。最新計畫 §XV 第 3 項明確要求驗證大寫欄位回應既有的 422 envelope。請補上該 endpoint 的 envelope 斷言，並確認 Service 沒有被呼叫。

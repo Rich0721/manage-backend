@@ -547,7 +547,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-30 | 2026-09-21 |
+| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -555,8 +555,8 @@ Compose service 設計：
 | TASK-006 | User Login | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
-| TASK-009 | Permission Management | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-30 | 2026-09-21 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-30 | 2026-09-21 |
+| TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | REVIEW FIX | 2026-09-30 | 2026-09-30 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
 TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。TASK-001、TASK-009、TASK-010
@@ -1237,8 +1237,8 @@ Testing:
 - [ ] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent
-Next Handoff: Code Review Agent（驗證 `permission` 契約修正）
+Current Handoff: Programmer Agent
+Next Handoff: Code Review Agent（驗證 TASK-010 的 422 envelope 測試）
 Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
                        normal cleanup must preserve named volumes; no application DDL/DML bootstrap

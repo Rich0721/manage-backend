@@ -54,3 +54,10 @@ Status: OPEN
 ## 2026-09-30 `permission` 契約更正
 
 使用者確認公開請求欄位為小寫 `permission`，且最新 User Manager 需求文件 §2-5-2 已如此定義。`src/models/schemas/user.py` 現行 alias 正確；前述要求把 production schema 改回大寫的方向撤銷。失敗原因是 `tests/models/schemas/test_user.py`、`tests/services/test_user_service.py` 和 `tests/controllers/test_user_controller.py` 仍使用舊大寫欄位。請依 `Features/Plan/02-User-Manager.md` §XV 的修正計畫更新測試，保留大寫輸入被拒絕的驗證，再重跑完整 regression。產品功能其他測試缺口與 Redis 整合測試隔離問題仍維持 OPEN。
+
+## 2026-09-30 再複審
+
+完整 pytest 為 `224 passed, 4 skipped`；`permission` 回歸及 Redis 整合測試 key 隔離已修正。下列計畫要求仍缺驗證：
+
+- **P1／並行一致性測試不足：** 現有 cache 測試只模擬單一 lease 的續租、失鎖檢查及取得逾時，沒有兩個寫入者與冷載入者交錯時的快照結果；因此未揭露 TASK-004 所述的失鎖後舊資料覆蓋。
+- **P2／API 與整合測試缺口：** Controller 僅測新增 header、非法 ID 與三條路由的成功回應，尚未覆蓋四項操作的角色及 400／401／404／409／503 錯誤。產品 PostgreSQL 整合測試僅驗證 DDL 和一筆軟刪除資料，Redis 整合測試僅驗證 round trip；沒有驗證真實 transaction rollback、lock／lease 與快取失效後重建。兩個產品整合測試本輪均因未設定外部連線而跳過，故尚無真實 PostgreSQL／Redis 驗收結果。

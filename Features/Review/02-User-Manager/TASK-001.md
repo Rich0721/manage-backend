@@ -5,6 +5,8 @@ Status: RESOLVED
 Review Fix Validation (2026-09-21): strict boolean、schema aliases、validation boundaries、
 required fields 與 mutable defaults 均已有測試覆蓋，原 Review Issue 已解決。
 
+2026-09-30 複審：`PermissionUpdateItem` 接受小寫 `permission`，測試驗證序列化欄位與大寫 `Permission` 被拒絕；符合最新計畫 §XV。狀態維持 RESOLVED。
+
 ## Task ID
 
 TASK-001

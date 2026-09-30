@@ -40,3 +40,8 @@ Status: OPEN
 
 - **P1／快取一致性：** `ProductCacheRepository.products_lock()` 只設定固定 10 秒 lease，鎖內沒有續租或失鎖檢查；Service 在同一鎖內執行 DB transaction、完整查詢及 Redis 快照替換。若執行超過 10 秒，其他寫入者可取得鎖，舊持有者仍能發布快照，造成過期資料覆蓋。`LabelCacheRepository.lock()` 也有相同固定 lease。計畫 §6.3 要求必要的續租及安全釋放。請確保鎖到期時不會繼續發布或修改共享狀態，並加入超時與競爭測試。
 - **P2／快照內容：** `ProductCacheRepository.__product_to_value()` 僅保存 `label_ids`，沒有保存計畫 §6.3 明列的標籤名稱；讀取快照後仍須另取標籤快取才能組成回應。請使快照包含正式標籤名稱並驗證序列化／還原。
+
+## 2026-09-30 再複審
+
+- **P1／失鎖後仍可發布舊快照：** 現在有背景續租，但 `ProductService.__write_product()` 僅在重建前呼叫 `lease.ensure_held()`；`__replace_product_cache()` 隨後查詢產品與標籤，最後呼叫 `ProductCacheRepository.replace_products()` 無條件 `SET`。若 A 在查詢後失鎖，B 取得鎖並發布較新快照，A 仍可把較舊快照覆蓋回去。冷載入及標籤重載的發布也沒有與 lock token 綁定。這仍違反計畫 §6.3 的並行一致性；發布前後的普通檢查也無法消除檢查與寫入之間的競爭窗口。請讓快照發布與持鎖驗證具備原子性，並在失鎖時避免寫入共享 key。
+- **P2／標籤名稱未還原：** JSON 現已寫入 `label_names`，但 `get_products()` 將資料還原為只有 `label_ids` 的 `ProductPO`，`ProductService.__to_response()` 每次仍重新查詢 `product:labels`。此外，序列化時若標籤 ID 不在映射中，推導式會直接略過，形成不完整快照而不報錯。計畫 §6.3 要求快照保存並重讀正式標籤名稱及一致型別；請完成讀取路徑及缺漏資料處理。
