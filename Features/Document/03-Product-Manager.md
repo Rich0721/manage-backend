@@ -34,6 +34,7 @@ uri: /productController/addProduct
 | --- | --- | --- |
 | 200 | OK | 產品新增成功 |
 | 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+| 409 | Conflict | 產品ID發生衝突 |
 
 ### 2-1-4. Response Body Information Object
 此物件包含新增產品後返回的資訊，需繼承自`Response Information`物件，以利Response Body的結構化。
@@ -55,7 +56,7 @@ uri: /productController/addProduct
 5. 若使用者沒有權限，系統返回`Unauthorized`訊息。
 
 ### 2-1-6. Business Rules
-1. 須將`tb_lables`的id, name先載入到Redis中，以`product:labels`作為key。
+1. 須將`tb_labels`的id, name先載入到Redis中，以`product:labels`作為key。
 2. Lable_names必須先透過","切割成陣列後，先查詢Redis中`product:labels`的對應ID，並將ID join成字串(例如: "1,2,3")，存入`label_ids`欄位。
 - 如果`product:labels`Key不存在，則需要先從`tb_labels`表中載入標籤資料到Redis中，然後再進行查詢。
 - 如果Redis中`product:labels`查詢不到對應的ID，則需要先清空Redis中的`product:labels`，然後重新從`tb_labels`表中載入標籤資料到Redis中，再進行查詢。
@@ -95,6 +96,7 @@ uri: /productController/getProducts?productId={id}
 | --- | --- | --- |
 | 200 | OK | 取得產品成功 |
 | 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+| 404 | Not Found | 產品不存在 |
 
 ### 2-2-4. Response Body Information Object
 
@@ -128,7 +130,7 @@ uri: /productController/getProducts?productId={id}
     - 不存在，則需要從資料庫中取得產品資訊，並更新Redis中的`products:info`。
     - 存在，則直接從Redis中取得產品資訊。
     - 如果因使用者`新增`, `更新`或`刪除`操作導致Redis中的`products:info`與資料庫不一致，則因由指定的操作重新更新Redis中的`products:info`，而非透過此功能進行更新。
-- 如果使用者取得所有產品資訊時，須將`delete_flag`為`false`的產品資訊返回，已刪除的產品不應包含在返回結果中。
+- Redis的`products:info`會包含已刪除的產品資訊，但回傳給使用者時應過濾掉已刪除的產品。
 - `Response Body`因以陣列為主，確保取得`單一產品`或`多個產品`時的結構一致性。
 
 
@@ -162,6 +164,7 @@ uri: /productController/updateProduct
 | --- | --- | --- |
 | 200 | OK | 更新產品成功 |
 | 401 | Unauthorized | 使用者沒有權限更新該資源 |
+| 404 | Not Found | 產品不存在 |
 
 ### 2-3-4. Response Body Information Object
 
@@ -222,6 +225,7 @@ uri: /productController/deleteProduct
 | --- | --- | --- |
 | 200 | OK | 刪除產品成功 |
 | 401 | Unauthorized | 使用者沒有權限刪除該資源 |
+| 404 | Not Found | 產品不存在 |
     
 
 ### 2-4-4. Response Body Information Object
