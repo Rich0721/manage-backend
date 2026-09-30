@@ -15,10 +15,12 @@ from src.models.schemas.product import ProductResponseInfo
 from src.models.schemas.product import ProductUpdateInfo
 from src.repositories.label_cache_repository import LabelCacheRepository
 from src.repositories.label_cache_repository import LabelCacheRepositoryError
+from src.repositories.label_cache_repository import LabelCacheLockLease
 from src.repositories.label_repository import LabelRepository
 from src.repositories.label_repository import LabelRepositoryError
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
+from src.repositories.product_cache_repository import ProductCacheLockLease
 from src.repositories.product_repository import DuplicateProductRecordError
 from src.repositories.product_repository import ProductRepository
 from src.repositories.product_repository import ProductRepositoryError
@@ -195,7 +197,7 @@ class ProductService(object):
                 except DuplicateProductRecordError as error:
                     raise ProductConflictError from error
                 await lease.ensure_held()
-                await self.__replace_product_cache(product.id, operation)
+                await self.__replace_product_cache(product.id, operation, lease)
         except (ProductConflictError, ProductNotFoundError):
             raise
         except ProductRepositoryError as error:
@@ -218,7 +220,7 @@ class ProductService(object):
                     if not deleted:
                         raise ProductNotFoundError
                 await lease.ensure_held()
-                await self.__replace_product_cache(product.id, "delete")
+                await self.__replace_product_cache(product.id, "delete", lease)
         except ProductNotFoundError:
             raise
         except ProductRepositoryError as error:
@@ -226,14 +228,23 @@ class ProductService(object):
         except ProductCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
 
-    async def __replace_product_cache(self, product_id: str, operation: str) -> None:
+    async def __replace_product_cache(
+        self,
+        product_id: str,
+        operation: str,
+        lease: ProductCacheLockLease,
+    ) -> None:
         try:
             products = await self.__products.list_all()
             labels = await self.__get_labels()
             label_names_by_id = {
                 label_id: label_name for label_id, label_name in labels.values()
             }
-            await self.__product_cache.replace_products(products, label_names_by_id)
+            await self.__product_cache.replace_products(
+                products,
+                label_names_by_id,
+                lease,
+            )
         except (ProductRepositoryError, ProductCacheRepositoryError):
             LOGGER.exception(
                 "Product cache replacement failed operation=%s product_id=%s",
@@ -251,7 +262,7 @@ class ProductService(object):
                 await lease.ensure_held()
                 products = await self.__product_cache.get_products()
                 if products is None:
-                    await self.__replace_product_cache("cold-load", "load")
+                    await self.__replace_product_cache("cold-load", "load", lease)
                     products = await self.__product_cache.get_products()
                     if products is None:
                         raise ProductCacheRepositoryError
@@ -279,7 +290,7 @@ class ProductService(object):
             async with self.__label_cache.lock() as lease:
                 await lease.ensure_held()
                 await self.__label_cache.invalidate()
-                labels = await self.__reload_labels()
+                labels = await self.__reload_labels(lease)
         except LabelRepositoryError as error:
             raise ServiceUnavailableError from error
         except LabelCacheRepositoryError as error:
@@ -298,16 +309,19 @@ class ProductService(object):
                 await lease.ensure_held()
                 labels = await self.__label_cache.get()
                 if labels is None:
-                    labels = await self.__reload_labels()
+                    labels = await self.__reload_labels(lease)
                 return labels
         except LabelRepositoryError as error:
             raise ServiceUnavailableError from error
         except LabelCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
 
-    async def __reload_labels(self) -> dict[str, tuple[int, str]]:
+    async def __reload_labels(
+        self,
+        lease: LabelCacheLockLease | None = None,
+    ) -> dict[str, tuple[int, str]]:
         labels = await self.__labels.list_all()
-        await self.__label_cache.replace(labels)
+        await self.__label_cache.replace(labels, lease)
         return {
             self.__label_cache.normalize_name(label.name): (label.id, label.name)
             for label in labels
@@ -327,24 +341,27 @@ class ProductService(object):
         return label_ids
 
     async def __to_response(self, product: Product) -> ProductResponseInfo:
-        labels = await self.__get_labels()
-        label_names: list[str] = []
-        try:
-            label_ids = [int(label_id) for label_id in product.label_ids.split(",")]
-            for label_id in label_ids:
-                label = next(
-                    (
-                        value
-                        for value in labels.values()
-                        if value[0] == label_id
-                    ),
-                    None,
-                )
-                if label is None:
-                    raise ValueError
-                label_names.append(label[1])
-        except ValueError as error:
-            raise ProductCacheUnavailableError from error
+        if product.label_names is None:
+            labels = await self.__get_labels()
+            label_names: list[str] = []
+            try:
+                label_ids = [int(label_id) for label_id in product.label_ids.split(",")]
+                for label_id in label_ids:
+                    label = next(
+                        (
+                            value
+                            for value in labels.values()
+                            if value[0] == label_id
+                        ),
+                        None,
+                    )
+                    if label is None:
+                        raise ValueError
+                    label_names.append(label[1])
+            except ValueError as error:
+                raise ProductCacheUnavailableError from error
+        else:
+            label_names = list(product.label_names)
         return ProductResponseInfo(
             id=product.id,
             name=product.name,

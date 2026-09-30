@@ -15,6 +15,7 @@ class ProductPO:
     created_at: datetime
     updated_uid: str
     updated_at: datetime
+    label_names: tuple[str, ...] | None = None
 
 
 Product = ProductPO

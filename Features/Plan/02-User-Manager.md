@@ -556,12 +556,11 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | REVIEW FIX | 2026-09-30 | 2026-09-30 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-30 | 2026-09-30 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
-TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。TASK-001、TASK-009、TASK-010
-因 `permission` 欄位大小寫變更需重新驗證測試；其餘 Task 維持 `DONE`。原有的 integration
-與 Compose deployment validation 結果屬於前次驗收，不代表本次完整 regression 已通過。
+TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。TASK-010 已補足 `permission` 欄位
+大小寫的 422 response envelope 驗證，等待 Code Review 複驗；其餘 Task 維持 `DONE`。
 
 ## IX. Implementation Steps
 
@@ -1237,7 +1236,7 @@ Testing:
 - [ ] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: Programmer Agent
+Current Handoff: Code Review Agent
 Next Handoff: Code Review Agent（驗證 TASK-010 的 422 envelope 測試）
 Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;

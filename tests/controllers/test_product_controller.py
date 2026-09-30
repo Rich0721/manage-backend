@@ -1,7 +1,10 @@
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
+import pytest
 
+from src.constants.product import ProductMessage
+from src.constants.user import AuthStatus
 from src.controllers.dependencies import get_product_service
 from src.main import create_app
 from src.models.schemas.product import ProductCreateResponseInfo
@@ -9,6 +12,12 @@ from src.models.schemas.product import ProductListResponseInfo
 from src.models.schemas.product import ProductResponseInfo
 from src.services.authorization_service import AuthorizationContext
 from src.services.product_service import ProtectedProductResult
+from src.services.product_errors import ProductCacheUnavailableError
+from src.services.product_errors import ProductConflictError
+from src.services.product_errors import ProductLabelNotFoundError
+from src.services.product_errors import ProductNotFoundError
+from src.services.product_errors import ProductPermissionError
+from src.constants.user import UserMessage
 
 
 class TestSettings(object):
@@ -158,3 +167,97 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
             assert response.json()["body"]["info"][0]["id"] == (
                 "1790705105001"
             )
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "payload", "service_method", "error", "status", "auth_status", "message"),
+    [
+        (
+            "post",
+            "/productController/addProduct",
+            {"body": {"info": {"name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            "add",
+            ProductLabelNotFoundError(),
+            400,
+            AuthStatus.SUCCESS,
+            ProductMessage.LABEL_NOT_FOUND,
+        ),
+        (
+            "get",
+            "/productController/getProducts?productId=ALL",
+            None,
+            "get",
+            ProductPermissionError(),
+            401,
+            AuthStatus.UNAUTHORIZED,
+            ProductMessage.UNAUTHORIZED,
+        ),
+        (
+            "put",
+            "/productController/updateProduct",
+            {"body": {"info": {"id": "1790705105001", "name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            "update",
+            ProductNotFoundError(),
+            404,
+            AuthStatus.SUCCESS,
+            ProductMessage.NOT_FOUND,
+        ),
+        (
+            "post",
+            "/productController/addProduct",
+            {"body": {"info": {"name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            "add",
+            ProductConflictError(),
+            409,
+            AuthStatus.SUCCESS,
+            ProductMessage.CONFLICT,
+        ),
+        (
+            "delete",
+            "/productController/deleteProduct",
+            {"body": {"info": {"id": "1790705105001"}}},
+            "delete",
+            ProductCacheUnavailableError(),
+            503,
+            AuthStatus.SUCCESS,
+            ProductMessage.CACHE_UNAVAILABLE,
+        ),
+        (
+            "get",
+            "/productController/getProducts?productId=ALL",
+            None,
+            "get",
+            RuntimeError(),
+            500,
+            AuthStatus.FAILED,
+            UserMessage.INTERNAL_ERROR,
+        ),
+    ],
+)
+def test_product_routes_map_service_errors_to_standard_envelopes(
+    method: str,
+    url: str,
+    payload: dict[str, object] | None,
+    service_method: str,
+    error: Exception,
+    status: int,
+    auth_status: AuthStatus,
+    message: str,
+) -> None:
+    service = AsyncMock()
+    getattr(service, service_method).side_effect = error
+
+    with make_client(service) as client:
+        response = client.request(method, url, headers={"uid": "header-user"}, json=payload)
+
+    assert response.status_code == status
+    assert response.headers.get("Authorization") is None
+    assert response.json()["body"] == {
+        "auth": {
+            "status": auth_status,
+            "message": message,
+            "uid": None,
+            "authorization": None,
+        },
+        "info": {},
+    }

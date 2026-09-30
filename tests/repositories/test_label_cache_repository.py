@@ -27,12 +27,15 @@ class FakeRedis(object):
         self,
         script: str,
         key_count: int,
-        key: str,
-        token: str,
         *arguments: object,
     ) -> int:
+        key = str(arguments[0])
+        token = str(arguments[key_count])
         if self.values.get(key) != token:
             return 0
+        if "KEYS[2]" in script:
+            self.values[str(arguments[1])] = str(arguments[key_count + 1])
+            return 1
         if "pexpire" in script:
             return 1
         await self.delete(key)
@@ -70,3 +73,19 @@ async def test_label_cache_rejects_duplicate_normalized_names() -> None:
 
     with pytest.raises(LabelCacheRepositoryError):
         await cache.replace([first, second])
+
+
+@pytest.mark.asyncio
+async def test_label_cache_cannot_publish_after_lease_loss() -> None:
+    client = FakeRedis()
+    cache = LabelCacheRepository(client)  # type: ignore[arg-type]
+    timestamp = datetime(2026, 1, 1)
+    label = Label(1, "Label", "user", timestamp, "user", timestamp)
+
+    async with cache.lock() as lease:
+        client.values["product:labels:lock"] = "new-owner"
+        client.values["product:labels"] = "newer snapshot"
+        with pytest.raises(LabelCacheRepositoryError):
+            await cache.replace([label], lease)
+
+    assert client.values["product:labels"] == "newer snapshot"

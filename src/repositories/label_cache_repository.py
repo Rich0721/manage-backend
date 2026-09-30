@@ -54,6 +54,32 @@ class LabelCacheLockLease(object):
         if self.__lost or not await self.renew():
             raise LabelCacheRepositoryError
 
+    async def replace(self, key: str, value: str) -> None:
+        """Replace a cache value only while this lease still owns its lock."""
+        if self.__lost:
+            raise LabelCacheRepositoryError
+        try:
+            replaced = await self.__client.eval(
+                """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    redis.call('set', KEYS[2], ARGV[2])
+                    return 1
+                end
+                return 0
+                """,
+                2,
+                self.__key,
+                key,
+                self.__token,
+                value,
+            )
+        except RedisError as error:
+            self.__lost = True
+            raise LabelCacheRepositoryError from error
+        if not replaced:
+            self.__lost = True
+            raise LabelCacheRepositoryError
+
 
 class LabelCacheRepository(object):
     _LOCK_SECONDS = 10
@@ -139,7 +165,11 @@ class LabelCacheRepository(object):
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise LabelCacheRepositoryError from error
 
-    async def replace(self, labels: list[Label]) -> None:
+    async def replace(
+        self,
+        labels: list[Label],
+        lease: LabelCacheLockLease | None = None,
+    ) -> None:
         values: dict[str, dict[str, int | str]] = {}
         for label in labels:
             normalized_name = self.normalize_name(label.name)
@@ -147,10 +177,14 @@ class LabelCacheRepository(object):
             if existing is not None and existing["id"] != label.id:
                 raise LabelCacheRepositoryError
             values[normalized_name] = {"id": label.id, "name": label.name}
-        try:
-            await self.__client.set(ProductCacheKey.LABELS, json.dumps(values))
-        except RedisError as error:
-            raise LabelCacheRepositoryError from error
+        value = json.dumps(values)
+        if lease is None:
+            try:
+                await self.__client.set(ProductCacheKey.LABELS, value)
+            except RedisError as error:
+                raise LabelCacheRepositoryError from error
+        else:
+            await lease.replace(ProductCacheKey.LABELS, value)
 
     async def invalidate(self) -> None:
         try:

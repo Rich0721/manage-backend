@@ -57,6 +57,32 @@ class ProductCacheLockLease(object):
         if self.__lost or not await self.renew():
             raise ProductCacheRepositoryError
 
+    async def replace(self, key: str, value: str) -> None:
+        """Replace a cache value only while this lease still owns its lock."""
+        if self.__lost:
+            raise ProductCacheRepositoryError
+        try:
+            replaced = await self.__client.eval(
+                """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    redis.call('set', KEYS[2], ARGV[2])
+                    return 1
+                end
+                return 0
+                """,
+                2,
+                self.__key,
+                key,
+                self.__token,
+                value,
+            )
+        except RedisError as error:
+            self.__lost = True
+            raise ProductCacheRepositoryError from error
+        if not replaced:
+            self.__lost = True
+            raise ProductCacheRepositoryError
+
 
 class ProductCacheRepository(object):
     _LOCK_SECONDS = 10
@@ -91,12 +117,17 @@ class ProductCacheRepository(object):
         self,
         products: list[Product],
         label_names_by_id: Mapping[int, str] | None = None,
+        lease: ProductCacheLockLease | None = None,
     ) -> None:
         values = [
-            self.__product_to_value(product, label_names_by_id or {})
+            self.__product_to_value(product, label_names_by_id)
             for product in products
         ]
-        await self.__set(self.__products_key, json.dumps(values))
+        value = json.dumps(values)
+        if lease is None:
+            await self.__set(self.__products_key, value)
+        else:
+            await lease.replace(self.__products_key, value)
 
     async def invalidate_products(self) -> None:
         try:
@@ -177,13 +208,20 @@ class ProductCacheRepository(object):
     @staticmethod
     def __product_to_value(
         product: Product,
-        label_names_by_id: Mapping[int, str],
+        label_names_by_id: Mapping[int, str] | None,
     ) -> dict[str, str | bool | list[str]]:
-        label_names = [
-            label_names_by_id[int(label_id)]
-            for label_id in product.label_ids.split(",")
-            if int(label_id) in label_names_by_id
-        ]
+        if product.label_names is not None:
+            label_names = list(product.label_names)
+        elif label_names_by_id is None:
+            label_names = []
+        else:
+            try:
+                label_names = [
+                    label_names_by_id[int(label_id)]
+                    for label_id in product.label_ids.split(",")
+                ]
+            except (KeyError, ValueError) as error:
+                raise ProductCacheRepositoryError from error
         return {
             "id": product.id,
             "name": product.name,
@@ -200,6 +238,15 @@ class ProductCacheRepository(object):
 
     @staticmethod
     def __product_from_value(value: Mapping[str, object]) -> Product:
+        raw_label_names = value.get("label_names")
+        if raw_label_names is not None and not isinstance(raw_label_names, list):
+            raise TypeError
+        label_names = (
+            tuple(str(name) for name in raw_label_names)
+            if raw_label_names is not None
+            and len(raw_label_names) == len(str(value["label_ids"]).split(","))
+            else None
+        )
         return Product(
             id=str(value["id"]),
             name=str(value["name"]),
@@ -211,4 +258,5 @@ class ProductCacheRepository(object):
             created_at=datetime.fromisoformat(str(value["created_at"])),
             updated_uid=str(value["updated_uid"]),
             updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            label_names=label_names,
         )

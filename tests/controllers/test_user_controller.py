@@ -307,6 +307,29 @@ def test_update_permission_rejects_capitalized_field() -> None:
         response = client.put("/userController/updatePermission", json=payload)
 
     assert response.status_code == 422
+    assert response.headers.get("Authorization") is None
+    assert response.json()["body"] == {
+        "auth": {
+            "status": AuthStatus.FAILED,
+            "message": UserMessage.VALIDATION_ERROR,
+            "uid": None,
+            "authorization": None,
+        },
+        "info": {
+            "errors": [
+                {
+                    "location": ["body", "body", "info", 0, "permission"],
+                    "message": "Field required",
+                    "error_type": "missing",
+                },
+                {
+                    "location": ["body", "body", "info", 0, "Permission"],
+                    "message": "Extra inputs are not permitted",
+                    "error_type": "extra_forbidden",
+                },
+            ],
+        },
+    }
 
 
 def test_schema_error_uses_standard_envelope() -> None:

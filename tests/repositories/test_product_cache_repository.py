@@ -31,12 +31,15 @@ class FakeRedis(object):
         self,
         script: str,
         key_count: int,
-        key: str,
-        token: str,
         *arguments: object,
     ) -> int:
+        key = str(arguments[0])
+        token = str(arguments[key_count])
         if self.values.get(key) != token:
             return 0
+        if "KEYS[2]" in script:
+            self.values[str(arguments[1])] = str(arguments[key_count + 1])
+            return 1
         if "pexpire" in script:
             self.renewals += 1
             return 1
@@ -63,7 +66,9 @@ async def test_products_cache_round_trips_soft_deleted_product() -> None:
 
     await cache.replace_products([product], {1: "Label1", 2: "Label2"})
 
-    assert await cache.get_products() == [product]
+    cached_products = await cache.get_products()
+    assert cached_products is not None
+    assert cached_products[0].label_names == ("Label1", "Label2")
     cached_product = json.loads(client.values["products:info"])[0]
     assert cached_product["label_names"] == ["Label1", "Label2"]
 
@@ -92,6 +97,32 @@ async def test_products_lock_refuses_cache_publication_after_lease_loss() -> Non
             await lease.ensure_held()
 
     assert client.values["products:info:lock"] == "another-owner"
+
+
+@pytest.mark.asyncio
+async def test_products_lock_cannot_overwrite_a_newer_snapshot_after_lease_loss() -> None:
+    client = FakeRedis()
+    cache = ProductCacheRepository(client)  # type: ignore[arg-type]
+    product = Product(
+        id="1790705105001",
+        name="Old snapshot",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+    )
+
+    async with cache.products_lock() as lease:
+        client.values["products:info:lock"] = "new-owner"
+        client.values["products:info"] = "newer snapshot"
+        with pytest.raises(ProductCacheRepositoryError):
+            await cache.replace_products([product], {1: "Label1"}, lease)
+
+    assert client.values["products:info"] == "newer snapshot"
 
 
 @pytest.mark.asyncio

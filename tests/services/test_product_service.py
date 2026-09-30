@@ -33,13 +33,16 @@ class FakeLease(object):
 
 
 class FakeUsers(object):
+    def __init__(self, role: UserRole = UserRole.USER) -> None:
+        self.role = role
+
     async def get_by_uid(self, uid: str) -> UserPO:
         return UserPO(
             uid=uid,
             email="user@example.com",
             user_name="User",
             password="x",
-            permission=UserRole.USER,
+            permission=self.role,
             created_at=datetime(2026, 1, 1),
             updated_at=datetime(2026, 1, 1),
         )
@@ -60,6 +63,7 @@ class FakeProductCache(object):
         self,
         products: list[Product],
         label_names_by_id: dict[int, str] | None = None,
+        lease: object | None = None,
     ) -> None:
         self.products = products
 
@@ -72,6 +76,7 @@ class FailingProductCache(FakeProductCache):
         self,
         products: list[Product],
         label_names_by_id: dict[int, str] | None = None,
+        lease: object | None = None,
     ) -> None:
         raise ProductCacheRepositoryError
 
@@ -87,7 +92,7 @@ class FakeLabelCache(object):
     async def get(self) -> dict[str, tuple[int, str]]:
         return self.labels
 
-    async def replace(self, labels: object) -> None:
+    async def replace(self, labels: object, lease: object | None = None) -> None:
         return None
 
     async def invalidate(self) -> None:
@@ -205,6 +210,37 @@ async def test_get_soft_deleted_product_as_single_item_is_not_found() -> None:
 
     with pytest.raises(ProductNotFoundError):
         await service.get(AuthorizationObject(uid="operator"), product.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", [UserRole.ADMIN, UserRole.MANAGER, UserRole.USER])
+async def test_all_roles_can_read_visible_products(role: UserRole) -> None:
+    product = Product(
+        id="1790705105001",
+        name="Visible",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+        label_names=("Snapshot label",),
+    )
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        FakeProducts(),  # type: ignore[arg-type]
+        FakeProductCache([product]),  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(role),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    result = await service.get(AuthorizationObject(uid="operator"), "ALL")
+
+    assert result.info.root[0].label_names == "Snapshot label"
 
 
 @pytest.mark.asyncio
