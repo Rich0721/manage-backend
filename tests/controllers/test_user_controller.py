@@ -296,6 +296,7 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
 
 
 def test_update_permission_rejects_capitalized_field() -> None:
+    service = AsyncMock()
     payload = {
         "body": {
             "auth": {"uid": "uid", "authorization": "Bearer token"},
@@ -303,7 +304,7 @@ def test_update_permission_rejects_capitalized_field() -> None:
         },
     }
 
-    with make_client(AsyncMock()) as client:
+    with make_client(service) as client:
         response = client.put("/userController/updatePermission", json=payload)
 
     assert response.status_code == 422
@@ -330,6 +331,7 @@ def test_update_permission_rejects_capitalized_field() -> None:
             ],
         },
     }
+    service.update_permissions.assert_not_awaited()
 
 
 def test_schema_error_uses_standard_envelope() -> None:

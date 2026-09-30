@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -151,12 +152,17 @@ async def test_products_cache_preserves_complete_snapshot() -> None:
         updated_at=datetime(2026, 1, 2),
     )
     try:
-        await cache.replace_products([product], {1: "Label"})
+        async with cache.products_lock() as lease:
+            assert await client.ttl(f"test:{prefix}:products:info:lock") > 0
+            await cache.replace_products([product], {1: "Label"}, lease)
         cached_products = await cache.get_products()
         assert cached_products is not None
         assert cached_products[0].label_names == ("Label",)
     finally:
-        await cache.invalidate_products()
+        await client.delete(
+            f"test:{prefix}:products:info",
+            f"test:{prefix}:products:info:version",
+        )
         await client.aclose()
 
 
@@ -191,5 +197,56 @@ async def test_products_cache_does_not_publish_after_losing_lease() -> None:
 
         assert await client.get(key) == "newer snapshot"
     finally:
-        await client.delete(key, f"{key}:lock")
+        await client.delete(key, f"{key}:lock", f"{key}:version")
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    REDIS_URL is None,
+    reason="INTEGRATION_REDIS_URL is not configured",
+)
+async def test_redis_fences_writer_and_cold_loader_after_commit() -> None:
+    client = Redis.from_url(REDIS_URL, decode_responses=True)
+    key = f"test:{uuid4().hex}:products:info"
+    cache = ProductCacheRepository(client, key)
+    old_product = Product(
+        id="1790705105001",
+        name="Old snapshot",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=False,
+        created_uid="user",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="user",
+        updated_at=datetime(2026, 1, 2),
+    )
+    committed_product = replace(old_product, name="Committed")
+    try:
+        async with cache.products_lock() as first_writer:
+            await cache.invalidate_products(first_writer)
+            await client.delete(f"{key}:lock")  # Simulate lease expiry.
+            async with cache.products_lock() as second_writer:
+                await cache.invalidate_products(second_writer)
+                await cache.invalidate_after_commit()
+                with pytest.raises(ProductCacheRepositoryError):
+                    await cache.replace_products(
+                        [old_product], {1: "Label"}, second_writer
+                    )
+            with pytest.raises(ProductCacheRepositoryError):
+                await cache.replace_products(
+                    [old_product], {1: "Label"}, first_writer
+                )
+
+        async with cache.products_lock() as cold_loader:
+            assert await cache.get_products() is None
+            await cache.replace_products(
+                [committed_product], {1: "Label"}, cold_loader
+            )
+        products = await cache.get_products()
+        assert products is not None
+        assert products[0].name == "Committed"
+    finally:
+        await client.delete(key, f"{key}:lock", f"{key}:version")
         await client.aclose()

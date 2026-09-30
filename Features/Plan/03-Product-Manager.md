@@ -144,12 +144,12 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | TASK-001 | Product / Label DDL and PO | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-002 | Product API schemas, constants and errors | ADD/MODIFY | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-003 | PostgreSQL product and label repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | REVIEW FIX | 2026-09-30 | 2026-09-30 |
+| TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | DEVELOPED DONE | 2026-09-30 | 2026-09-30 |
 | TASK-005 | Product authorization and label resolution | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-006 | Add and get products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-008 | Product routes and dependency wiring | ADD/MODIFY | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-009 | Unit, API and integration coverage | ADD | 2026-09-30 | REVIEW FIX | 2026-09-30 | 2026-09-30 |
+| TASK-009 | Unit, API and integration coverage | ADD | 2026-09-30 | DEVELOPED DONE | 2026-09-30 | 2026-09-30 |
 
 `ADD` 表示產品相關新檔，`MODIFY` 僅限現有 wiring／錯誤檔；目前狀態以本表及 `Features/Review/03-Product-Manager/` 的複審結果為準。
 
@@ -384,7 +384,7 @@ Testing: 執行產品目標測試與既有完整 pytest regression；記錄實�
 - [ ] Code Review 通過
 
 ```text
-Current Handoff: Programmer Agent
+Current Handoff: Code Review Agent
 Next Handoff: Code Review Agent（驗證 TASK-004、TASK-009 修正）
 Implementation Scope: 產品新增、查詢、更新、軟刪除；兩張 DDL、標籤與產品快取
 Important Constraints: 沿用既有授權與分層；Redis/DB 無共同 transaction；軟刪除不得執行 SQL DELETE

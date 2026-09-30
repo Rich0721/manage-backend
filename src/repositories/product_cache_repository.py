@@ -24,13 +24,17 @@ class ProductCacheLockLease(object):
         self,
         client: Redis,
         key: str,
+        version_key: str,
         token: str,
         seconds: int,
+        version: int,
     ) -> None:
         self.__client = client
         self.__key = key
+        self.__version_key = version_key
         self.__token = token
         self.__seconds = seconds
+        self.__version = version
         self.__lost = False
 
     async def renew(self) -> bool:
@@ -57,6 +61,33 @@ class ProductCacheLockLease(object):
         if self.__lost or not await self.renew():
             raise ProductCacheRepositoryError
 
+    async def invalidate(self, key: str) -> None:
+        if self.__lost:
+            raise ProductCacheRepositoryError
+        try:
+            version = await self.__client.eval(
+                """
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                    local version = redis.call('incr', KEYS[3])
+                    redis.call('del', KEYS[2])
+                    return version
+                end
+                return 0
+                """,
+                3,
+                self.__key,
+                key,
+                self.__version_key,
+                self.__token,
+            )
+        except RedisError as error:
+            self.__lost = True
+            raise ProductCacheRepositoryError from error
+        if not version:
+            self.__lost = True
+            raise ProductCacheRepositoryError
+        self.__version = int(version)
+
     async def replace(self, key: str, value: str) -> None:
         """Replace a cache value only while this lease still owns its lock."""
         if self.__lost:
@@ -64,16 +95,19 @@ class ProductCacheLockLease(object):
         try:
             replaced = await self.__client.eval(
                 """
-                if redis.call('get', KEYS[1]) == ARGV[1] then
-                    redis.call('set', KEYS[2], ARGV[2])
+                if redis.call('get', KEYS[1]) == ARGV[1]
+                    and (redis.call('get', KEYS[3]) or '0') == ARGV[2] then
+                    redis.call('set', KEYS[2], ARGV[3])
                     return 1
                 end
                 return 0
                 """,
-                2,
+                3,
                 self.__key,
                 key,
+                self.__version_key,
                 self.__token,
+                str(self.__version),
                 value,
             )
         except RedisError as error:
@@ -97,6 +131,7 @@ class ProductCacheRepository(object):
     ) -> None:
         self.__client = client
         self.__products_key = products_key
+        self.__version_key = f"{products_key}:version"
 
     @asynccontextmanager
     async def products_lock(self) -> AsyncIterator[ProductCacheLockLease]:
@@ -116,34 +151,38 @@ class ProductCacheRepository(object):
     async def replace_products(
         self,
         products: list[Product],
-        label_names_by_id: Mapping[int, str] | None = None,
-        lease: ProductCacheLockLease | None = None,
+        label_names_by_id: Mapping[int, str],
+        lease: ProductCacheLockLease,
     ) -> None:
         values = [
             self.__product_to_value(product, label_names_by_id)
             for product in products
         ]
         value = json.dumps(values)
-        if lease is None:
-            await self.__set(self.__products_key, value)
-        else:
-            await lease.replace(self.__products_key, value)
+        await lease.replace(self.__products_key, value)
 
-    async def invalidate_products(self) -> None:
+    async def invalidate_products(self, lease: ProductCacheLockLease) -> None:
+        await lease.invalidate(self.__products_key)
+
+    async def invalidate_after_commit(self) -> None:
+        """Fence pending snapshots after a committed write loses its lease."""
         try:
-            await self.__client.delete(self.__products_key)
+            await self.__client.eval(
+                """
+                redis.call('incr', KEYS[2])
+                redis.call('del', KEYS[1])
+                return 1
+                """,
+                2,
+                self.__products_key,
+                self.__version_key,
+            )
         except RedisError as error:
             raise ProductCacheRepositoryError from error
 
     async def __get(self, key: str) -> str | None:
         try:
             return await self.__client.get(key)
-        except RedisError as error:
-            raise ProductCacheRepositoryError from error
-
-    async def __set(self, key: str, value: str) -> None:
-        try:
-            await self.__client.set(key, value)
         except RedisError as error:
             raise ProductCacheRepositoryError from error
 
@@ -169,11 +208,17 @@ class ProductCacheRepository(object):
                 await asyncio.sleep(self._LOCK_RETRY_SECONDS)
             if not acquired:
                 raise ProductCacheRepositoryError
+            try:
+                version = int(await self.__client.get(self.__version_key) or 0)
+            except (RedisError, ValueError) as error:
+                raise ProductCacheRepositoryError from error
             lease = ProductCacheLockLease(
                 self.__client,
                 key,
+                self.__version_key,
                 token,
                 self._LOCK_SECONDS,
+                version,
             )
             renewal_task = asyncio.create_task(self.__renew_lease(lease))
             try:
@@ -213,7 +258,7 @@ class ProductCacheRepository(object):
         if product.label_names is not None:
             label_names = list(product.label_names)
         elif label_names_by_id is None:
-            label_names = []
+            raise ProductCacheRepositoryError
         else:
             try:
                 label_names = [
@@ -222,6 +267,10 @@ class ProductCacheRepository(object):
                 ]
             except (KeyError, ValueError) as error:
                 raise ProductCacheRepositoryError from error
+        if len(label_names) != len(product.label_ids.split(",")):
+            raise ProductCacheRepositoryError
+        if any(not isinstance(name, str) or not name for name in label_names):
+            raise ProductCacheRepositoryError
         return {
             "id": product.id,
             "name": product.name,
@@ -239,14 +288,16 @@ class ProductCacheRepository(object):
     @staticmethod
     def __product_from_value(value: Mapping[str, object]) -> Product:
         raw_label_names = value.get("label_names")
-        if raw_label_names is not None and not isinstance(raw_label_names, list):
+        if not isinstance(raw_label_names, list):
             raise TypeError
-        label_names = (
-            tuple(str(name) for name in raw_label_names)
-            if raw_label_names is not None
-            and len(raw_label_names) == len(str(value["label_ids"]).split(","))
-            else None
-        )
+        if len(raw_label_names) != len(str(value["label_ids"]).split(",")):
+            raise ValueError
+        if any(
+            not isinstance(name, str) or not name
+            for name in raw_label_names
+        ):
+            raise ValueError
+        label_names = tuple(raw_label_names)
         return Product(
             id=str(value["id"]),
             name=str(value["name"]),

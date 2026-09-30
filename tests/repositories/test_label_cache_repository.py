@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+from redis.exceptions import RedisError
 
 from src.models.po.label import Label
 from src.repositories.label_cache_repository import LabelCacheRepository
@@ -33,6 +34,9 @@ class FakeRedis(object):
         token = str(arguments[key_count])
         if self.values.get(key) != token:
             return 0
+        if "redis.call('del', KEYS[2])" in script:
+            await self.delete(str(arguments[1]))
+            return 1
         if "KEYS[2]" in script:
             self.values[str(arguments[1])] = str(arguments[key_count + 1])
             return 1
@@ -55,7 +59,8 @@ async def test_label_cache_normalizes_names_and_releases_lock() -> None:
         updated_at=datetime(2026, 1, 1),
     )
 
-    await cache.replace([label])
+    async with cache.lock() as lease:
+        await cache.replace([label], lease)
 
     assert await cache.get() == {"label": (1, " Label ")}
     async with cache.lock() as lease:
@@ -72,7 +77,8 @@ async def test_label_cache_rejects_duplicate_normalized_names() -> None:
     second = Label(2, " label ", "user", timestamp, "user", timestamp)
 
     with pytest.raises(LabelCacheRepositoryError):
-        await cache.replace([first, second])
+        async with cache.lock() as lease:
+            await cache.replace([first, second], lease)
 
 
 @pytest.mark.asyncio
@@ -89,3 +95,29 @@ async def test_label_cache_cannot_publish_after_lease_loss() -> None:
             await cache.replace([label], lease)
 
     assert client.values["product:labels"] == "newer snapshot"
+
+
+@pytest.mark.asyncio
+async def test_label_cache_cannot_invalidate_after_lease_loss() -> None:
+    client = FakeRedis()
+    cache = LabelCacheRepository(client)  # type: ignore[arg-type]
+
+    async with cache.lock() as lease:
+        client.values["product:labels:lock"] = "new-owner"
+        client.values["product:labels"] = "newer snapshot"
+        with pytest.raises(LabelCacheRepositoryError):
+            await cache.invalidate(lease)
+
+    assert client.values["product:labels"] == "newer snapshot"
+
+
+@pytest.mark.asyncio
+async def test_label_redis_read_failure_is_a_cache_error() -> None:
+    class FailingRedis(FakeRedis):
+        async def get(self, key: str) -> str | None:
+            raise RedisError("unavailable")
+
+    cache = LabelCacheRepository(FailingRedis())  # type: ignore[arg-type]
+
+    with pytest.raises(LabelCacheRepositoryError):
+        await cache.get()

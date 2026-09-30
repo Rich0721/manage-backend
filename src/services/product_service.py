@@ -182,10 +182,12 @@ class ProductService(object):
         return context
 
     async def __write_product(self, product: Product, operation: str) -> None:
+        committed = False
+        published = False
         try:
             async with self.__product_cache.products_lock() as lease:
                 await lease.ensure_held()
-                await self.__product_cache.invalidate_products()
+                await self.__product_cache.invalidate_products(lease)
                 try:
                     async with self.__products.transaction() as connection:
                         if operation == "add":
@@ -196,20 +198,29 @@ class ProductService(object):
                                 raise ProductNotFoundError
                 except DuplicateProductRecordError as error:
                     raise ProductConflictError from error
+                committed = True
                 await lease.ensure_held()
                 await self.__replace_product_cache(product.id, operation, lease)
+                published = True
         except (ProductConflictError, ProductNotFoundError):
             raise
         except ProductRepositoryError as error:
             raise ServiceUnavailableError from error
         except ProductCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
+        finally:
+            if committed and not published:
+                await self.__invalidate_failed_publication(
+                    product.id, operation
+                )
 
     async def __delete_product(self, product: Product) -> None:
+        committed = False
+        published = False
         try:
             async with self.__product_cache.products_lock() as lease:
                 await lease.ensure_held()
-                await self.__product_cache.invalidate_products()
+                await self.__product_cache.invalidate_products(lease)
                 async with self.__products.transaction() as connection:
                     deleted = await self.__products.soft_delete(
                         product.id,
@@ -219,14 +230,36 @@ class ProductService(object):
                     )
                     if not deleted:
                         raise ProductNotFoundError
+                committed = True
                 await lease.ensure_held()
                 await self.__replace_product_cache(product.id, "delete", lease)
+                published = True
         except ProductNotFoundError:
             raise
         except ProductRepositoryError as error:
             raise ServiceUnavailableError from error
         except ProductCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
+        finally:
+            if committed and not published:
+                await self.__invalidate_failed_publication(
+                    product.id, "delete"
+                )
+
+    async def __invalidate_failed_publication(
+        self,
+        product_id: str,
+        operation: str,
+    ) -> None:
+        try:
+            await self.__product_cache.invalidate_after_commit()
+        except ProductCacheRepositoryError:
+            LOGGER.exception(
+                "Product cache invalidation failed after commit "
+                "operation=%s product_id=%s",
+                operation,
+                product_id,
+            )
 
     async def __replace_product_cache(
         self,
@@ -289,7 +322,7 @@ class ProductService(object):
         try:
             async with self.__label_cache.lock() as lease:
                 await lease.ensure_held()
-                await self.__label_cache.invalidate()
+                await self.__label_cache.invalidate(lease)
                 labels = await self.__reload_labels(lease)
         except LabelRepositoryError as error:
             raise ServiceUnavailableError from error
@@ -318,7 +351,7 @@ class ProductService(object):
 
     async def __reload_labels(
         self,
-        lease: LabelCacheLockLease | None = None,
+        lease: LabelCacheLockLease,
     ) -> dict[str, tuple[int, str]]:
         labels = await self.__labels.list_all()
         await self.__label_cache.replace(labels, lease)

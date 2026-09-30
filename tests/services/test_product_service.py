@@ -51,6 +51,7 @@ class FakeUsers(object):
 class FakeProductCache(object):
     def __init__(self, products: list[Product] | None = None) -> None:
         self.products = products
+        self.post_commit_invalidations = 0
 
     @asynccontextmanager
     async def products_lock(self):
@@ -67,7 +68,11 @@ class FakeProductCache(object):
     ) -> None:
         self.products = products
 
-    async def invalidate_products(self) -> None:
+    async def invalidate_products(self, lease: object) -> None:
+        self.products = None
+
+    async def invalidate_after_commit(self) -> None:
+        self.post_commit_invalidations += 1
         self.products = None
 
 
@@ -92,10 +97,10 @@ class FakeLabelCache(object):
     async def get(self) -> dict[str, tuple[int, str]]:
         return self.labels
 
-    async def replace(self, labels: object, lease: object | None = None) -> None:
+    async def replace(self, labels: object, lease: object) -> None:
         return None
 
-    async def invalidate(self) -> None:
+    async def invalidate(self, lease: object) -> None:
         return None
 
     @staticmethod
@@ -213,6 +218,51 @@ async def test_get_soft_deleted_product_as_single_item_is_not_found() -> None:
 
 
 @pytest.mark.asyncio
+async def test_cold_load_caches_deleted_but_filters_response() -> None:
+    visible = Product(
+        id="1790705105001",
+        name="Visible",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+    )
+    deleted = Product(
+        id="1790705105002",
+        name="Deleted",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=True,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+    )
+    products = FakeProducts()
+    products.values = [visible, deleted]
+    cache = FakeProductCache()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    result = await service.get(AuthorizationObject(uid="operator"), "ALL")
+
+    assert [item.id for item in result.info.root] == [visible.id]
+    assert cache.products == [visible, deleted]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("role", [UserRole.ADMIN, UserRole.MANAGER, UserRole.USER])
 async def test_all_roles_can_read_visible_products(role: UserRole) -> None:
     product = Product(
@@ -241,6 +291,53 @@ async def test_all_roles_can_read_visible_products(role: UserRole) -> None:
     result = await service.get(AuthorizationObject(uid="operator"), "ALL")
 
     assert result.info.root[0].label_names == "Snapshot label"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", [UserRole.ADMIN, UserRole.MANAGER, UserRole.USER])
+async def test_all_roles_can_add_update_and_delete(role: UserRole) -> None:
+    products = FakeProducts()
+    cache = FakeProductCache()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(role),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+    auth = AuthorizationObject(uid="operator")
+
+    added = await service.add(
+        auth,
+        ProductCreateInfo(
+            name="Created",
+            label_names="label1",
+            cost=Decimal("100.00"),
+            price=Decimal("150.00"),
+        ),
+    )
+    updated = await service.update(
+        auth,
+        ProductUpdateInfo(
+            id=added.info.id,
+            name="Updated",
+            label_names="label2",
+            cost=Decimal("120.00"),
+            price=Decimal("150.00"),
+        ),
+    )
+    deleted = await service.delete(
+        auth,
+        ProductDeleteInfo(id=added.info.id),
+    )
+
+    assert updated.info.root[0].name == "Updated"
+    assert updated.info.root[0].label_names == "Label2"
+    assert deleted.info.root[0].delete_flag
+    assert products.values[0].delete_flag
+    assert products.values[0].updated_uid == "operator"
 
 
 @pytest.mark.asyncio
@@ -292,10 +389,12 @@ async def test_update_and_delete_rebuild_the_full_product_cache() -> None:
 
 @pytest.mark.asyncio
 async def test_unknown_label_reloads_once_then_returns_expected_error() -> None:
+    products = FakeProducts()
+    cache = FakeProductCache()
     service = ProductService(
         object(),  # type: ignore[arg-type]
-        FakeProducts(),  # type: ignore[arg-type]
-        FakeProductCache(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
         FakeLabels(),  # type: ignore[arg-type]
         FakeLabelCache(),  # type: ignore[arg-type]
         FakeUsers(),  # type: ignore[arg-type]
@@ -313,14 +412,18 @@ async def test_unknown_label_reloads_once_then_returns_expected_error() -> None:
             ),
         )
 
+    assert products.values == []
+    assert cache.products is None
+
 
 @pytest.mark.asyncio
 async def test_cache_rebuild_failure_after_insert_returns_503() -> None:
     products = FakeProducts()
+    cache = FailingProductCache()
     service = ProductService(
         object(),  # type: ignore[arg-type]
         products,  # type: ignore[arg-type]
-        FailingProductCache(),  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
         FakeLabels(),  # type: ignore[arg-type]
         FakeLabelCache(),  # type: ignore[arg-type]
         FakeUsers(),  # type: ignore[arg-type]
@@ -339,3 +442,5 @@ async def test_cache_rebuild_failure_after_insert_returns_503() -> None:
         )
 
     assert len(products.values) == 1
+    assert cache.post_commit_invalidations == 1
+    assert cache.products is None
