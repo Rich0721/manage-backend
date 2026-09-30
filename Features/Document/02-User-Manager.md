@@ -256,7 +256,7 @@ uri: /userController/updatePermission
 | 欄位 | 型別 | 說明 | 
 | --- | --- | --- |
 | email | string | 目標使用者的電子郵件地址 |
-| Permission | string | 目標使用者的角色，僅允許`admin`、`manager`、`user` |
+| permission | string | 目標使用者的角色，僅允許`admin`、`manager`、`user` |
 
 #### 2-5-3. Response Body Authorization
 
