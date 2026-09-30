@@ -16,7 +16,8 @@ from src.config.settings import Settings
 from src.constants.user import AuthStatus
 from src.constants.user import UserMessage
 from src.controllers.user_controller import build_error_envelope
-from src.controllers.user_controller import router
+from src.controllers.product_controller import router as product_router
+from src.controllers.user_controller import router as user_router
 from src.services.errors import ApplicationError
 
 
@@ -46,7 +47,8 @@ def create_app(
             yield
 
     application = FastAPI(lifespan=lifespan)
-    application.include_router(router)
+    application.include_router(user_router)
+    application.include_router(product_router)
 
     @application.exception_handler(ApplicationError)
     async def handle_application_error(

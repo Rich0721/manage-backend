@@ -71,7 +71,12 @@ def test_all_exact_routes_are_registered() -> None:
     assert "post" in paths["/userController/getUsers"]
     assert "put" in paths["/userController/updatePermission"]
     for path in paths.values():
-        operation = path.get("post") or path.get("put")
+        operation = (
+            path.get("post")
+            or path.get("put")
+            or path.get("get")
+            or path.get("delete")
+        )
         schema = operation["responses"]["200"]["content"][
             "application/json"
         ]["schema"]
