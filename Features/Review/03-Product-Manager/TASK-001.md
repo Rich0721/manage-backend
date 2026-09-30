@@ -31,3 +31,7 @@ test that reads the files as UTF-8 and verifies representative comments.
 ```text
 Status: RESOLVED
 ```
+
+## 2026-09-30 複審
+
+兩份 DDL 均可用 UTF-8 嚴格解碼，且不含替代字元；欄位與自動遞增整數標籤 ID 符合計畫。原問題已解決，TASK-001 可標記 DONE。真實 PostgreSQL 驗證由 TASK-009 追蹤。

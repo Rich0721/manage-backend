@@ -3,10 +3,10 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Complete
+Plan Status: Updated
 Plan Date: 2026-09-21
-Plan Revision Date: 2026-09-21
-Implementation Gate: COMPLETE
+Plan Revision Date: 2026-09-30
+Implementation Gate: READY FOR PROGRAMMER（僅 `permission` 測試契約修正）
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -55,7 +55,7 @@ Implementation Gate: COMPLETE
 | Session expiration | 600 seconds | `REDIS_TTL`，default 300 seconds | MODIFY；settings/Redis/JWT/tests |
 | JWT settings | 未定義 | `SECRET_KEY`、DEBUG/PRODUCTION policy | ADD；settings/security |
 | DEBUG authentication | 未定義 | Token absent 時略過 authentication | ADD；authorization service |
-| Permission item | `target_role` | `Permission` | MODIFY；public JSON contract |
+| Permission item | `target_role` | `permission` | MODIFY；public JSON contract；2026-09-30 依最新需求修正大小寫 |
 | Batch update | 未定義 | 全部成功才 commit，否則不更新 | ADD；transaction/rollback |
 | Register error | 未定義 HTTP code | Success 200、business validation 400 | ADD；controller mapping |
 | Table | `TB_USERS`、未定義長度 | `tb_users`、password 64，其餘 VARCHAR 256 | MODIFY；DDL/PO/validation |
@@ -101,7 +101,7 @@ Implementation Gate: COMPLETE
 - Admin 可在 user、manager 之間調整角色，但不可修改 admin。
 - Manager 只可將 user 調整為 user 或 manager，不可修改 manager 或 admin。
 - User 不可修改任何角色。
-- Permission update item 對外欄位為 `Permission`。
+- Permission update item 對外欄位為 `permission`。
 - Batch permission update 必須全部驗證及更新成功才 commit；任一失敗時整批不更新。
 - PostgreSQL table 使用 `tb_users`；password 為 VARCHAR(64)，uid/email/user_name/
   permission 為 VARCHAR(256)，user_name 必須支援中文。
@@ -288,7 +288,7 @@ HTTP mapping 或 architecture placement。
 - Reuse `AuthorizationObject`，不在 user schema 重複定義 auth fields。
 - 每個 endpoint 的 `info` 使用獨立 Pydantic model，禁止直接以
   `dict[str, Any]` 接受業務資料。
-- Request JSON 使用 requirement 已確認的 `isForceLogin` 與 `Permission`；內部 Python
+- Request JSON 使用 requirement 已確認的 `isForceLogin` 與 `permission`；內部 Python
   attribute 使用 `is_force_login` 與 `permission`，透過 Pydantic serialization alias
   維持對外 contract。
 - Email format 與 role enum 在 schema boundary 驗證；duplicate email、credential、
@@ -547,7 +547,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | PLAN UPDATED | 2026-09-21 | 2026-09-21 |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -555,12 +555,13 @@ Compose service 設計：
 | TASK-006 | User Login | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
-| TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
+| TASK-009 | Permission Management | ADD | 2026-09-21 | PLAN UPDATED | 2026-09-21 | 2026-09-21 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | PLAN UPDATED | 2026-09-21 | 2026-09-21 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
-TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。所有 Task 均為 `DONE`，完整
-regression、真實 PostgreSQL/Redis integration 與 Compose deployment validation 均已完成。
+TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。TASK-001、TASK-009、TASK-010
+因 `permission` 欄位大小寫變更需重新驗證測試；其餘 Task 維持 `DONE`。原有的 integration
+與 Compose deployment validation 結果屬於前次驗收，不代表本次完整 regression 已通過。
 
 ## IX. Implementation Steps
 
@@ -596,7 +597,7 @@ Email/boolean/role/password validation, and the exact external field names.
 Implementation:
 - Reuse AuthorizationObject instead of duplicating auth fields.
 - Define distinct request and response info models.
-- Use exact aliases `userName`、`confirmPassword`、`isForceLogin` and `Permission`; Python
+- Use exact aliases `userName`、`confirmPassword`、`isForceLogin` and `permission`; Python
   attributes remain snake_case.
 - Normalize Email with lowercase before length and format validation; enforce the requirement
   VARCHAR(256) boundaries for Email and userName.
@@ -1163,7 +1164,7 @@ Testing:
 - Redis key is now consistently `<uid>:login`; implementation must not create the previously
   documented `<Uid>:Authorization:JWT` namespace.
 - API is new, so there is no existing User Manager endpoint compatibility burden；public request
-  aliases must use the newly confirmed `isForceLogin` and `Permission` names only.
+  aliases must use the newly confirmed `isForceLogin` and `permission` names only.
 - Existing host-process defaults remain `localhost`; Docker infrastructure does not force container
   DNS into non-container execution. A future application container must explicitly override URLs.
 - Existing named volumes are retained across normal Compose shutdown. Compose 不執行 application
@@ -1233,16 +1234,37 @@ Testing:
 
 - [x] 本次 Docker Compose Plan Update 已完成人工審核
 - [x] TASK-011 Development 完成
-- [x] Code Review 通過
+- [ ] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: None
-Next Handoff: None
-Implementation Scope: PostgreSQL 17 / Redis Server 8.10.1 Compose infrastructure and env integration
+Current Handoff: Programmer Agent
+Next Handoff: Code Review Agent（`permission` 測試修正後複審）
+Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
                        normal cleanup must preserve named volumes; no application DDL/DML bootstrap
-Test Result: 194 passed, including PostgreSQL and Redis integration tests
+Previous Test Result: 194 passed, including PostgreSQL and Redis integration tests
 Environment Result: PostgreSQL 17.11 and Redis Server 8.10.1 healthy after non-destructive restart;
                     persistent PostgreSQL schema has no tb_users table
 Do Not Modify: Features/Document requirements, completed Authorization behavior, unrelated code
 ```
+
+## XV. 2026-09-30 Permission 欄位大小寫修正計畫
+
+**Requirement Type：** Requirement Change。最新 `Features/Document/02-User-Manager.md` §2-5-2 定義 `PUT /userController/updatePermission` 的請求項目欄位為小寫 `permission`。
+
+| 項目 | 原行為／文件 | 本次要求 | 差異 |
+|---|---|---|---|
+| 公開 JSON 欄位 | 舊計畫及測試使用 `Permission` | 使用 `permission` | 大小寫變更；不影響角色值或權限矩陣 |
+| Pydantic schema | `PermissionUpdateItem.permission` 已使用 `Field(alias="permission")` | 保持 | Production code 已符合最新需求 |
+| 測試 | Schema、Service、Controller 測試仍輸入 `Permission` | 輸入並驗證 `permission` | 更新過時的測試資料與欄位斷言 |
+
+**影響範圍：** API request contract 為 MODIFY；`src/models/schemas/user.py`、Service、Controller、資料庫、Redis、設定與 dependency 均為 NO CHANGE。Gherkin 表格標題 `Permission` 表示情境資料欄位，公開 JSON 欄位以需求文件 §2-5-2 為準，不因此修改 PM 文件。
+
+**Programmer 修正項目：**
+
+1. TASK-001：更新 `tests/models/schemas/test_user.py` 的合法項目、序列化 alias 與非法角色案例；加入舊大寫 `Permission` 被拒絕的契約測試。保留 Email 與角色驗證邏輯。
+2. TASK-009：更新 `tests/services/test_user_service.py` 建立 `PermissionUpdateItem` 的測試資料；保留所有角色矩陣、批次交易及 rollback 斷言。
+3. TASK-010：更新 `tests/controllers/test_user_controller.py` 的 `updatePermission` HTTP payload 為小寫 `permission`，並驗證舊大寫欄位回應既有 422 envelope。
+4. 先執行上述 User Manager 目標測試，再使用專案 `.venv` 執行完整 `python -m pytest -q`；記錄 passed／failed／skipped。若外部 PostgreSQL／Redis 未提供，依既有 integration skip 政策記錄，不以跳過宣稱整合驗證完成。
+
+**驗收條件：** 小寫 `permission` 可通過 schema、Service 與 HTTP 測試；大寫 `Permission` 不被接受；既有權限矩陣與批次 rollback 行為不變；完整 regression 沒有由本契約造成的失敗。原先 23 個失敗是測試沿用舊欄位，不能藉由將 production alias 改回大寫修正。

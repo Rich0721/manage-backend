@@ -1,6 +1,6 @@
 # TASK-003 Code Review
 
-Status: RESOLVED
+Status: OPEN
 
 ## Review Result
 
@@ -32,5 +32,9 @@ including database-error mapping and soft-delete row-count handling.
 ## Resolution
 
 ```text
-Status: RESOLVED
+Status: OPEN
 ```
+
+## 2026-09-30 複審
+
+原本缺少的 `LabelRepository.list_all()` 已補上，Service 也改用獨立 repository。其餘驗收仍未完成：`test_product_repository.py` 只有查詢及更新／軟刪除零筆測試，`test_label_repository.py` 只有正常查詢測試；缺少新增時重複 ID 對應、資料庫異常映射，以及 transaction rollback 的驗證。計畫 TASK-003 的 Testing 明列這些情境。請補齊後再送審。
