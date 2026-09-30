@@ -45,3 +45,12 @@ Status: OPEN
 
 - **P1／失鎖後仍可發布舊快照：** 現在有背景續租，但 `ProductService.__write_product()` 僅在重建前呼叫 `lease.ensure_held()`；`__replace_product_cache()` 隨後查詢產品與標籤，最後呼叫 `ProductCacheRepository.replace_products()` 無條件 `SET`。若 A 在查詢後失鎖，B 取得鎖並發布較新快照，A 仍可把較舊快照覆蓋回去。冷載入及標籤重載的發布也沒有與 lock token 綁定。這仍違反計畫 §6.3 的並行一致性；發布前後的普通檢查也無法消除檢查與寫入之間的競爭窗口。請讓快照發布與持鎖驗證具備原子性，並在失鎖時避免寫入共享 key。
 - **P2／標籤名稱未還原：** JSON 現已寫入 `label_names`，但 `get_products()` 將資料還原為只有 `label_ids` 的 `ProductPO`，`ProductService.__to_response()` 每次仍重新查詢 `product:labels`。此外，序列化時若標籤 ID 不在映射中，推導式會直接略過，形成不完整快照而不報錯。計畫 §6.3 要求快照保存並重讀正式標籤名稱及一致型別；請完成讀取路徑及缺漏資料處理。
+
+## 2026-09-30 修正複審
+
+- **已修正：** 產品與標籤快取的 `replace` 現可用 Lua 同時檢查 lock token 並寫入快照；產品快取讀取會還原 `label_names`，缺少 ID 映射時會報錯。失鎖後發布測試已加入。
+- **P1／失效舊快取仍有競爭窗口：** `src/services/product_service.py:187-188,211-212` 在 `ensure_held()` 後呼叫 `invalidate_products()`，但 `src/repositories/product_cache_repository.py:132-135` 使用未檢查 lock token 的 Redis `DELETE`。A 可在檢查後失鎖，B 取得鎖並 commit／發布新快照，A 隨後刪掉 B 的快照並繼續 DB 異動。`product:labels` 的重載在 `src/services/product_service.py:291-293` 也以相同方式執行未綁定 token 的 `invalidate()`。計畫 §6.3 要求鎖內失效、異動與發布的並行一致性，且在失效舊 key 前失鎖時不得執行 DB 異動。請讓失效操作與持有權檢查具原子性，並驗證失鎖時不會清除新持有者資料。
+- **P1／DB commit 後可能留下過時快取：** 即使最終發布有 token 檢查，A 在 DB transaction 期間失鎖後，B 可能先從 DB 載入並發布快照；A 隨後 commit，於 `ensure_held()` 失敗而回 503，但 B 的快照仍留在 Redis。這違反計畫 §6.3「DB 已 commit 但發布失敗時 key 保持缺失」與下一次讀取重建的要求。需處理 lease 在 DB 異動期間失效的時序，避免留下已知過時快照。
+- **P2／快照仍可缺少正式標籤名稱：** `ProductCacheRepository.replace_products()` 的 `label_names_by_id` 仍為選填；`__product_to_value()` 在產品有 `label_ids` 卻未提供映射時寫入空 `label_names`，而 `__product_from_value()` 將數量不符的名稱設為 `None`，使已存在快照的讀取路徑再次依賴標籤快取。計畫 §6.3 要求完整快照保存並重讀標籤名稱；請避免發布這種不完整快照。
+
+結論：Review Status 維持 `OPEN`；TASK-004 交回 Programmer 修正。

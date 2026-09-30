@@ -61,3 +61,11 @@ Status: OPEN
 
 - **P1／並行一致性測試不足：** 現有 cache 測試只模擬單一 lease 的續租、失鎖檢查及取得逾時，沒有兩個寫入者與冷載入者交錯時的快照結果；因此未揭露 TASK-004 所述的失鎖後舊資料覆蓋。
 - **P2／API 與整合測試缺口：** Controller 僅測新增 header、非法 ID 與三條路由的成功回應，尚未覆蓋四項操作的角色及 400／401／404／409／503 錯誤。產品 PostgreSQL 整合測試僅驗證 DDL 和一筆軟刪除資料，Redis 整合測試僅驗證 round trip；沒有驗證真實 transaction rollback、lock／lease 與快取失效後重建。兩個產品整合測試本輪均因未設定外部連線而跳過，故尚無真實 PostgreSQL／Redis 驗收結果。
+
+## 2026-09-30 修正複審
+
+- **已修正：** 完整 pytest 為 235 passed、6 skipped；Controller 新增 400／401／404／409／503／500 envelope 測試，Service 新增三角色查詢測試，並新增 PostgreSQL rollback 與 Redis 失鎖整合測試。整合連線未設定，因此 6 項整合測試均依既有政策跳過；這不是實際 PostgreSQL／Redis 執行通過的證據。
+- **P1／並行情境仍未覆蓋：** `tests/repositories/test_product_cache_repository.py` 與新增 Redis 整合測試僅以單一 lease 人為替換 lock token，驗證失鎖後 `replace_products()` 不覆寫；沒有兩位 writer 與 cold loader 交錯、失鎖後 `invalidate_products()`、DB commit 後發布失敗但新快照已存在的時序。計畫 TASK-004 Testing 與 TASK-009 的並行／快取一致性驗收仍缺。請加入能重現 TASK-004 本次發現時序的測試。
+- **P2／產品操作與整合覆蓋仍不足：** `tests/services/test_product_service.py` 的角色參數化只測 `get(ALL)`，沒有驗證三種角色各自執行新增、更新、刪除；Controller 的新增錯誤表格由 `AsyncMock` 直接拋錯，只證明全域 handler，未驗證 Service 分支。新增整合測試雖涵蓋 rollback 與單一 lease 失效，仍未驗證計畫 §X 所列真實 Redis lock 競爭、快取失效後重建與 DB commit 後發布失敗保持 key 缺失。請補足與計畫相應的行為測試；外部服務缺席可依既有 skip 政策記錄。
+
+結論：Review Status 維持 `OPEN`；TASK-009 交回 Programmer 修正。

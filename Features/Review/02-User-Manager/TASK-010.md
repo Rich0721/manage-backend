@@ -63,3 +63,10 @@ Status: OPEN
 ## 2026-09-30 複審
 
 - **P2／缺少契約斷言：** `tests/controllers/test_user_controller.py` 的 `test_update_permission_rejects_capitalized_field()` 只檢查 HTTP 422，沒有檢查回應的標準 `body.auth` 狀態、訊息及 `body.info.errors`。最新計畫 §XV 第 3 項明確要求驗證大寫欄位回應既有的 422 envelope。請補上該 endpoint 的 envelope 斷言，並確認 Service 沒有被呼叫。
+
+## 2026-09-30 修正複審
+
+- **已修正：** 同一測試現已檢查 HTTP 422、標準 `body.auth`、`body.info.errors` 的欄位位置與錯誤類型，以及無 `Authorization` response header。完整 pytest 為 235 passed、6 skipped。
+- **P2／尚缺 Service 呼叫驗證：** `tests/controllers/test_user_controller.py:307-308` 在 `make_client(AsyncMock())` 中直接建立匿名 mock，後續無法檢查 `update_permissions` 是否被呼叫。前次 Review 明確要求驗證大寫 `Permission` 在 Schema 階段遭拒，Service 不執行；請保留 mock 參照並加入未呼叫斷言。
+
+結論：Review Status 維持 `OPEN`；TASK-010 交回 Programmer 修正。
