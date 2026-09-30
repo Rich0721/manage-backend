@@ -144,7 +144,7 @@ uri: /productController/updateProduct
 
 ### 2-3-2. Request Body Information Object
 
-此物件包含取得產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
+此物件包含更新產品所需的資訊，需繼承自`Request Information`物件，以利Request Body的結構化。
 
 | 欄位 | 型別 | 說明 |
 | --- | --- | --- |
@@ -197,15 +197,14 @@ uri: /productController/updateProduct
 6. 更新產品時，`name`, `label_names`, `cost` 和 `price` 等欄位不得為空，否則更新失敗。
 
 ### 2-4. 刪除產品
-Flow Chart:
-Gherkin:
+Flow Chart: [刪除產品流程圖](flows/03-Product-Manager/Delete_Product.mmd)
+Gherkin: [刪除產品Gherkin範例](Scenarios/03-Product-Manager/Delete_Product.feature)
 METHOD: DELETE
 uri: /productController/deleteProduct
 
 ### 2-4-1. Request Body Authorization
 
-此物件包含取得產品所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
-根據登入後獲得的`Authorization`資訊填寫。
+此物件需要透過`Header`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
 
 ### 2-4-2. Request Body Information Object
 
@@ -217,12 +216,13 @@ uri: /productController/deleteProduct
 
 ### 2-4-3. Response Body Authorization
 
-此物件包含取得使用者登入資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
-根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
+根據登入後資訊將使用者相關資訊透過`Header`中的`uid`和`Authorization`資訊返回。
+需繼承自`authorization`物件，以利Response Body的結構化，根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
 | 200 | OK | 刪除產品成功 |
-| 401 | Unauthorized | 使用者沒有權限訪問該資源 |
+| 401 | Unauthorized | 使用者沒有權限刪除該資源 |
+    
 
 ### 2-4-4. Response Body Information Object
 
@@ -235,6 +235,25 @@ uri: /productController/deleteProduct
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| delete_flag | boolean | 刪除標誌, default false |
+| updated_user | string | 更新用戶 |
+| updated_at   | datetime | 更新時間 |
+
+### 2-4-5. 使用者操作
+使用者在刪除產品時，需要先登入系統，並且具有相應的權限。操作流程如下：
+1. 使用者登入系統，獲取`Authorization`資訊。
+2. 使用者於進入前端產品管理頁面，會先透過`getProducts?productId=all`取得所有產品的資訊。
+3. 根據使用者指定的產品ID點選`刪除`按鈕。
+4. 系統會根據使用者的操作，發送刪除產品的請求至後端API。
+5. 若刪除成功，系統會更新前端顯示，並同步更新Redis中的`products:info`。
+
+### 2-4-6. Business Rules
+1. 需檢查product ID是否存在，若不存在，系統應返回錯誤訊息。
+2. 使用者必須登入系統並具有相應的權限才能刪除產品。
+3. 刪除產品成功後，需同步更新Redis中的`products:info`。
+4. 若使用者沒有權限，系統返回`Unauthorized`訊息。
+5. 刪除產品僅將`delete_flag`設置為`true`，實際資料仍保留於資料庫中，不能使用`DELETE`語句直接刪除。
+
 
 
 ## III. 其他資訊

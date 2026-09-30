@@ -1,0 +1,18 @@
+flowchart TD
+    %% Nodes
+    StartPoint(刪除產品流程開始)
+    EndPoint(刪除產品流程結束)
+    ReceiveInformation(Request Information)
+    ValidateInformation{驗證使用者登入資訊}
+    ReturnError(返回錯誤訊息)
+    DeleteProductInformation(刪除產品資訊)
+    UpdateRedis(更新 Redis)
+
+    %% Connections
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation -- 驗證失敗 --> ReturnError
+    ValidateInformation -- 驗證成功 --> DeleteProductInformation
+    DeleteProductInformation --> UpdateRedis
+    UpdateRedis --> EndPoint
+    ReturnError --> EndPoint
