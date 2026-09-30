@@ -11,14 +11,14 @@ CREATE TABLE tb_products (
     updated_at TIMESTAMP NOT NULL
 );
 
-COMMENT ON TABLE tb_products IS '產品資料';
-COMMENT ON COLUMN tb_products.id IS '產品識別碼（Unix 毫秒時間戳）';
-COMMENT ON COLUMN tb_products.name IS '產品名稱';
-COMMENT ON COLUMN tb_products.label_ids IS '逗號分隔的標籤識別碼';
-COMMENT ON COLUMN tb_products.cost IS '成本';
-COMMENT ON COLUMN tb_products.price IS '售價';
-COMMENT ON COLUMN tb_products.delete_flag IS '軟刪除旗標';
-COMMENT ON COLUMN tb_products.created_uid IS '建立者 UID';
-COMMENT ON COLUMN tb_products.created_at IS '建立時間';
-COMMENT ON COLUMN tb_products.updated_uid IS '最後更新者 UID';
-COMMENT ON COLUMN tb_products.updated_at IS '最後更新時間';
+COMMENT ON TABLE tb_products IS 'Product records';
+COMMENT ON COLUMN tb_products.id IS '13-digit Unix timestamp product ID';
+COMMENT ON COLUMN tb_products.name IS 'Product name';
+COMMENT ON COLUMN tb_products.label_ids IS 'Comma-separated label IDs';
+COMMENT ON COLUMN tb_products.cost IS 'Product cost';
+COMMENT ON COLUMN tb_products.price IS 'Product price';
+COMMENT ON COLUMN tb_products.delete_flag IS 'Soft-delete flag';
+COMMENT ON COLUMN tb_products.created_uid IS 'Creator UID';
+COMMENT ON COLUMN tb_products.created_at IS 'UTC creation timestamp';
+COMMENT ON COLUMN tb_products.updated_uid IS 'Last updater UID';
+COMMENT ON COLUMN tb_products.updated_at IS 'UTC last-update timestamp';

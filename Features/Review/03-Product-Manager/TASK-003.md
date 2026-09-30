@@ -1,6 +1,6 @@
 # TASK-003 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -32,5 +32,5 @@ including database-error mapping and soft-delete row-count handling.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```

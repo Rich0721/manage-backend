@@ -1,6 +1,6 @@
 # TASK-004 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -31,5 +31,5 @@ into `ProductService`, and add lock ownership and cache-reload tests.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```

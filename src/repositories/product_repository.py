@@ -9,7 +9,6 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from src.models.po.label import Label
 from src.models.po.product import Product
 
 
@@ -36,24 +35,7 @@ class ProductRepository(object):
         except PsycopgError as error:
             raise ProductRepositoryError from error
 
-    async def list_labels(self) -> list[Label]:
-        try:
-            async with self.__pool.connection() as connection:
-                async with connection.cursor(row_factory=dict_row) as cursor:
-                    await cursor.execute(
-                        """
-                        SELECT id, name, created_uid, created_at,
-                               updated_uid, updated_at
-                          FROM tb_labels
-                         ORDER BY id
-                        """
-                    )
-                    rows = await cursor.fetchall()
-        except PsycopgError as error:
-            raise ProductRepositoryError from error
-        return [self.__to_label(row) for row in rows]
-
-    async def list_products(self) -> list[Product]:
+    async def list_all(self) -> list[Product]:
         try:
             async with self.__pool.connection() as connection:
                 async with connection.cursor(row_factory=dict_row) as cursor:
@@ -70,7 +52,25 @@ class ProductRepository(object):
             raise ProductRepositoryError from error
         return [self.__to_product(row) for row in rows]
 
-    async def create(
+    async def get_by_id(self, product_id: str) -> Product | None:
+        try:
+            async with self.__pool.connection() as connection:
+                async with connection.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(
+                        """
+                        SELECT id, name, label_ids, cost, price, delete_flag,
+                               created_uid, created_at, updated_uid, updated_at
+                          FROM tb_products
+                         WHERE id = %s
+                        """,
+                        (product_id,),
+                    )
+                    row = await cursor.fetchone()
+        except PsycopgError as error:
+            raise ProductRepositoryError from error
+        return self.__to_product(row) if row is not None else None
+
+    async def insert(
         self,
         product: Product,
         connection: AsyncConnection[Any],
@@ -158,17 +158,6 @@ class ProductRepository(object):
                 return cursor.rowcount == 1
         except PsycopgError as error:
             raise ProductRepositoryError from error
-
-    @staticmethod
-    def __to_label(row: dict[str, Any]) -> Label:
-        return Label(
-            id=row["id"],
-            name=row["name"],
-            created_uid=row["created_uid"],
-            created_at=row["created_at"],
-            updated_uid=row["updated_uid"],
-            updated_at=row["updated_at"],
-        )
 
     @staticmethod
     def __to_product(row: dict[str, Any]) -> Product:

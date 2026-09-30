@@ -1,6 +1,6 @@
 # TASK-001 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -29,5 +29,5 @@ test that reads the files as UTF-8 and verifies representative comments.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```

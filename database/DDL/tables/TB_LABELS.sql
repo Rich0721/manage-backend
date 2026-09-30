@@ -7,10 +7,10 @@ CREATE TABLE tb_labels (
     updated_at TIMESTAMP NOT NULL
 );
 
-COMMENT ON TABLE tb_labels IS '產品標籤資料';
-COMMENT ON COLUMN tb_labels.id IS '標籤識別碼';
-COMMENT ON COLUMN tb_labels.name IS '標籤名稱';
-COMMENT ON COLUMN tb_labels.created_uid IS '建立者 UID';
-COMMENT ON COLUMN tb_labels.created_at IS '建立時間';
-COMMENT ON COLUMN tb_labels.updated_uid IS '最後更新者 UID';
-COMMENT ON COLUMN tb_labels.updated_at IS '最後更新時間';
+COMMENT ON TABLE tb_labels IS 'Product label records';
+COMMENT ON COLUMN tb_labels.id IS 'Label ID';
+COMMENT ON COLUMN tb_labels.name IS 'Label name';
+COMMENT ON COLUMN tb_labels.created_uid IS 'Creator UID';
+COMMENT ON COLUMN tb_labels.created_at IS 'UTC creation timestamp';
+COMMENT ON COLUMN tb_labels.updated_uid IS 'Last updater UID';
+COMMENT ON COLUMN tb_labels.updated_at IS 'UTC last-update timestamp';

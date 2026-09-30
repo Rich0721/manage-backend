@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from src.controllers.dependencies import get_product_service
 from src.main import create_app
 from src.models.schemas.product import ProductCreateResponseInfo
+from src.models.schemas.product import ProductListResponseInfo
+from src.models.schemas.product import ProductResponseInfo
 from src.services.authorization_service import AuthorizationContext
 from src.services.product_service import ProtectedProductResult
 
@@ -92,3 +94,67 @@ def test_get_products_rejects_invalid_product_id_before_service() -> None:
 
     assert response.status_code == 422
     service.get.assert_not_awaited()
+
+
+def test_get_update_and_delete_routes_return_product_lists() -> None:
+    service = AsyncMock()
+    result = ProtectedProductResult(
+        context=AuthorizationContext("header-user", "Bearer renewed", False),
+        info=ProductListResponseInfo(
+            [
+                ProductResponseInfo(
+                    id="1790705105001",
+                    name="Product",
+                    label_names="label1",
+                    cost=100,
+                    price=150,
+                    delete_flag=False,
+                    updated_user="header-user",
+                    updated_at="2026-01-01T00:00:00",
+                ),
+            ],
+        ),
+    )
+    service.get.return_value = result
+    service.update.return_value = result
+    service.delete.return_value = result
+    requests = [
+        (
+            "get",
+            "/productController/getProducts?productId=ALL",
+            None,
+        ),
+        (
+            "put",
+            "/productController/updateProduct",
+            {
+                "body": {
+                    "info": {
+                        "id": "1790705105001",
+                        "name": "Product",
+                        "label_names": "label1",
+                        "cost": 100,
+                        "price": 150,
+                    },
+                },
+            },
+        ),
+        (
+            "delete",
+            "/productController/deleteProduct",
+            {"body": {"info": {"id": "1790705105001"}}},
+        ),
+    ]
+
+    with make_client(service) as client:
+        for method, url, payload in requests:
+            response = client.request(
+                method,
+                url,
+                headers={"uid": "header-user"},
+                json=payload,
+            )
+            assert response.status_code == 200
+            assert response.json()["body"]["info"][0]["id"] == (
+                "1790705105001"
+            )

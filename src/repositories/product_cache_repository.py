@@ -10,7 +10,6 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from src.constants.product import ProductCacheKey
-from src.models.po.label import Label
 from src.models.po.product import Product
 
 
@@ -29,11 +28,6 @@ class ProductCacheRepository(object):
     @asynccontextmanager
     async def products_lock(self) -> AsyncIterator[None]:
         async with self.__lock(f"{ProductCacheKey.PRODUCTS}:lock"):
-            yield
-
-    @asynccontextmanager
-    async def labels_lock(self) -> AsyncIterator[None]:
-        async with self.__lock(f"{ProductCacheKey.LABELS}:lock"):
             yield
 
     async def get_products(self) -> list[Product] | None:
@@ -55,39 +49,6 @@ class ProductCacheRepository(object):
             await self.__client.delete(ProductCacheKey.PRODUCTS)
         except RedisError as error:
             raise ProductCacheRepositoryError from error
-
-    async def get_labels(self) -> dict[str, tuple[int, str]] | None:
-        raw_labels = await self.__get(ProductCacheKey.LABELS)
-        if raw_labels is None:
-            return None
-        try:
-            values = json.loads(raw_labels)
-            return {
-                normalized_name: (int(value["id"]), value["name"])
-                for normalized_name, value in values.items()
-            }
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
-            raise ProductCacheRepositoryError from error
-
-    async def replace_labels(self, labels: list[Label]) -> None:
-        values: dict[str, dict[str, int | str]] = {}
-        for label in labels:
-            normalized_name = self.normalize_label_name(label.name)
-            existing = values.get(normalized_name)
-            if existing is not None and existing["id"] != label.id:
-                raise ProductCacheRepositoryError
-            values[normalized_name] = {"id": label.id, "name": label.name}
-        await self.__set(ProductCacheKey.LABELS, json.dumps(values))
-
-    async def invalidate_labels(self) -> None:
-        try:
-            await self.__client.delete(ProductCacheKey.LABELS)
-        except RedisError as error:
-            raise ProductCacheRepositoryError from error
-
-    @staticmethod
-    def normalize_label_name(name: str) -> str:
-        return name.strip().casefold()
 
     async def __get(self, key: ProductCacheKey) -> str | None:
         try:

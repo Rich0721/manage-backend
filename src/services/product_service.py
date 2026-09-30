@@ -13,6 +13,10 @@ from src.models.schemas.product import ProductDeleteInfo
 from src.models.schemas.product import ProductListResponseInfo
 from src.models.schemas.product import ProductResponseInfo
 from src.models.schemas.product import ProductUpdateInfo
+from src.repositories.label_cache_repository import LabelCacheRepository
+from src.repositories.label_cache_repository import LabelCacheRepositoryError
+from src.repositories.label_repository import LabelRepository
+from src.repositories.label_repository import LabelRepositoryError
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
 from src.repositories.product_repository import DuplicateProductRecordError
@@ -44,13 +48,17 @@ class ProductService(object):
         self,
         settings: Settings,
         products: ProductRepository,
-        cache: ProductCacheRepository,
+        product_cache: ProductCacheRepository,
+        labels: LabelRepository,
+        label_cache: LabelCacheRepository,
         users: UserRepository,
         authorization: AuthorizationService,
     ) -> None:
         self.__settings = settings
         self.__products = products
-        self.__cache = cache
+        self.__product_cache = product_cache
+        self.__labels = labels
+        self.__label_cache = label_cache
         self.__users = users
         self.__authorization = authorization
 
@@ -173,12 +181,12 @@ class ProductService(object):
 
     async def __write_product(self, product: Product, operation: str) -> None:
         try:
-            async with self.__cache.products_lock():
-                await self.__cache.invalidate_products()
+            async with self.__product_cache.products_lock():
+                await self.__product_cache.invalidate_products()
                 try:
                     async with self.__products.transaction() as connection:
                         if operation == "add":
-                            await self.__products.create(product, connection)
+                            await self.__products.insert(product, connection)
                         else:
                             updated = await self.__products.update(product, connection)
                             if not updated:
@@ -195,8 +203,8 @@ class ProductService(object):
 
     async def __delete_product(self, product: Product) -> None:
         try:
-            async with self.__cache.products_lock():
-                await self.__cache.invalidate_products()
+            async with self.__product_cache.products_lock():
+                await self.__product_cache.invalidate_products()
                 async with self.__products.transaction() as connection:
                     deleted = await self.__products.soft_delete(
                         product.id,
@@ -216,8 +224,8 @@ class ProductService(object):
 
     async def __replace_product_cache(self, product_id: str, operation: str) -> None:
         try:
-            products = await self.__products.list_products()
-            await self.__cache.replace_products(products)
+            products = await self.__products.list_all()
+            await self.__product_cache.replace_products(products)
         except (ProductRepositoryError, ProductCacheRepositoryError):
             LOGGER.exception(
                 "Product cache replacement failed operation=%s product_id=%s",
@@ -228,14 +236,14 @@ class ProductService(object):
 
     async def __get_all_products(self) -> list[Product]:
         try:
-            products = await self.__cache.get_products()
+            products = await self.__product_cache.get_products()
             if products is not None:
                 return products
-            async with self.__cache.products_lock():
-                products = await self.__cache.get_products()
+            async with self.__product_cache.products_lock():
+                products = await self.__product_cache.get_products()
                 if products is None:
-                    products = await self.__products.list_products()
-                    await self.__cache.replace_products(products)
+                    products = await self.__products.list_all()
+                    await self.__product_cache.replace_products(products)
                 return products
         except ProductRepositoryError as error:
             raise ServiceUnavailableError from error
@@ -257,12 +265,12 @@ class ProductService(object):
             return label_ids
 
         try:
-            async with self.__cache.labels_lock():
-                await self.__cache.invalidate_labels()
+            async with self.__label_cache.lock():
+                await self.__label_cache.invalidate()
                 labels = await self.__reload_labels()
-        except ProductRepositoryError as error:
+        except LabelRepositoryError as error:
             raise ServiceUnavailableError from error
-        except ProductCacheRepositoryError as error:
+        except LabelCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
         label_ids = self.__lookup_label_ids(requested_names, labels)
         if label_ids is None:
@@ -271,24 +279,24 @@ class ProductService(object):
 
     async def __get_labels(self) -> dict[str, tuple[int, str]]:
         try:
-            labels = await self.__cache.get_labels()
+            labels = await self.__label_cache.get()
             if labels is not None:
                 return labels
-            async with self.__cache.labels_lock():
-                labels = await self.__cache.get_labels()
+            async with self.__label_cache.lock():
+                labels = await self.__label_cache.get()
                 if labels is None:
                     labels = await self.__reload_labels()
                 return labels
-        except ProductRepositoryError as error:
+        except LabelRepositoryError as error:
             raise ServiceUnavailableError from error
-        except ProductCacheRepositoryError as error:
+        except LabelCacheRepositoryError as error:
             raise ProductCacheUnavailableError from error
 
     async def __reload_labels(self) -> dict[str, tuple[int, str]]:
-        labels = await self.__products.list_labels()
-        await self.__cache.replace_labels(labels)
+        labels = await self.__labels.list_all()
+        await self.__label_cache.replace(labels)
         return {
-            self.__cache.normalize_label_name(label.name): (label.id, label.name)
+            self.__label_cache.normalize_name(label.name): (label.id, label.name)
             for label in labels
         }
 

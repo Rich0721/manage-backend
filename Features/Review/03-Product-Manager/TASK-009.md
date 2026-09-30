@@ -1,6 +1,6 @@
 # TASK-009 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -42,5 +42,5 @@ the full test command passes.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```

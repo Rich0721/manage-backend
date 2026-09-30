@@ -15,11 +15,25 @@ class FakeRedis(object):
         return self.values.get(key)
 
     async def set(self, key: str, value: str, **kwargs: object) -> bool:
+        if kwargs.get("nx") and key in self.values:
+            return False
         self.values[key] = value
         return True
 
     async def delete(self, key: str) -> int:
         return int(self.values.pop(key, None) is not None)
+
+    async def eval(
+        self,
+        script: str,
+        key_count: int,
+        key: str,
+        token: str,
+    ) -> int:
+        if self.values.get(key) != token:
+            return 0
+        await self.delete(key)
+        return 1
 
 
 @pytest.mark.asyncio
@@ -41,3 +55,14 @@ async def test_products_cache_round_trips_soft_deleted_product() -> None:
     await cache.replace_products([product])
 
     assert await cache.get_products() == [product]
+
+
+@pytest.mark.asyncio
+async def test_products_lock_is_released_by_owner_only() -> None:
+    client = FakeRedis()
+    cache = ProductCacheRepository(client)  # type: ignore[arg-type]
+
+    async with cache.products_lock():
+        assert "products:info:lock" in client.values
+
+    assert "products:info:lock" not in client.values

@@ -4,6 +4,8 @@ from fastapi import Depends
 from fastapi import Request
 
 from src.repositories.session_repository import SessionRepository
+from src.repositories.label_cache_repository import LabelCacheRepository
+from src.repositories.label_repository import LabelRepository
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_repository import ProductRepository
 from src.repositories.user_repository import UserRepository
@@ -30,10 +32,20 @@ def get_product_service(request: Request) -> ProductService:
     settings = request.app.state.settings
     users = UserRepository(request.app.state.database_pool)
     products = ProductRepository(request.app.state.database_pool)
-    cache = ProductCacheRepository(request.app.state.redis_client)
+    product_cache = ProductCacheRepository(request.app.state.redis_client)
+    labels = LabelRepository(request.app.state.database_pool)
+    label_cache = LabelCacheRepository(request.app.state.redis_client)
     sessions = SessionRepository(request.app.state.redis_client, settings.REDIS_TTL)
     authorization = AuthorizationService(settings, sessions)
-    return ProductService(settings, products, cache, users, authorization)
+    return ProductService(
+        settings,
+        products,
+        product_cache,
+        labels,
+        label_cache,
+        users,
+        authorization,
+    )
 
 
 ProductServiceDependency = Annotated[
