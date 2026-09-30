@@ -1,6 +1,6 @@
 # TASK-009 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -41,7 +41,7 @@ the full test command passes.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 ## 2026-09-30 複審
@@ -69,3 +69,11 @@ Status: OPEN
 - **P2／產品操作與整合覆蓋仍不足：** `tests/services/test_product_service.py` 的角色參數化只測 `get(ALL)`，沒有驗證三種角色各自執行新增、更新、刪除；Controller 的新增錯誤表格由 `AsyncMock` 直接拋錯，只證明全域 handler，未驗證 Service 分支。新增整合測試雖涵蓋 rollback 與單一 lease 失效，仍未驗證計畫 §X 所列真實 Redis lock 競爭、快取失效後重建與 DB commit 後發布失敗保持 key 缺失。請補足與計畫相應的行為測試；外部服務缺席可依既有 skip 政策記錄。
 
 結論：Review Status 維持 `OPEN`；TASK-009 交回 Programmer 修正。
+
+## 2026-09-30 最終複審
+
+- Repository 測試新增失鎖後不得失效新快照、兩位 writer 與等待中的 cold loader 交錯、commit 後版本失效及下一次重建；Service 測試已涵蓋三種角色各自新增、更新、軟刪除。前次 P1／P2 缺口已補足。
+- 真實 Redis 整合測試使用獨立 key，驗證 lease 競爭、版本 fence 與 commit 後冷載入；PostgreSQL 整合測試驗證 transaction rollback。
+- 使用專案 `.venv` 與 `.env` 中的整合連線執行 `python -m pytest -q`：254 passed、0 skipped、1 個 Starlette deprecation warning；整合測試實際執行，無 skip。
+
+結論：Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。

@@ -556,12 +556,10 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DEVELOPED DONE | 2026-09-30 | 2026-09-30 |
+| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
-TASK-003 與 TASK-011 的 Code Review Fix 已驗證通過。TASK-010 已補足大寫
-`Permission` 的 422 envelope 與 Service 未呼叫斷言，等待 Code Review 複驗；
-其餘 Task 維持 `DONE`。
+TASK-003、TASK-010 與 TASK-011 的 Code Review Fix 已驗證通過；所有 Task 均為 `DONE`。
 
 ## IX. Implementation Steps
 
@@ -1234,11 +1232,11 @@ Testing:
 
 - [x] 本次 Docker Compose Plan Update 已完成人工審核
 - [x] TASK-011 Development 完成
-- [ ] 本次 `permission` 契約變更的 Code Review 通過
+- [x] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent
-Next Handoff: Code Review Agent（驗證 TASK-010 的 Service 未呼叫斷言）
+Current Handoff: None（TASK-010 Code Review 已通過）
+Next Handoff: None
 Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
                        normal cleanup must preserve named volumes; no application DDL/DML bootstrap

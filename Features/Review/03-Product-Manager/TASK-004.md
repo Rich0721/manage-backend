@@ -1,6 +1,6 @@
 # TASK-004 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Review Result
 
@@ -31,7 +31,7 @@ into `ProductService`, and add lock ownership and cache-reload tests.
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 ## 2026-09-30 複審
@@ -54,3 +54,12 @@ Status: OPEN
 - **P2／快照仍可缺少正式標籤名稱：** `ProductCacheRepository.replace_products()` 的 `label_names_by_id` 仍為選填；`__product_to_value()` 在產品有 `label_ids` 卻未提供映射時寫入空 `label_names`，而 `__product_from_value()` 將數量不符的名稱設為 `None`，使已存在快照的讀取路徑再次依賴標籤快取。計畫 §6.3 要求完整快照保存並重讀標籤名稱；請避免發布這種不完整快照。
 
 結論：Review Status 維持 `OPEN`；TASK-004 交回 Programmer 修正。
+
+## 2026-09-30 最終複審
+
+- 產品與標籤快取的失效操作均以 Lua 同時驗證 lock token 與清除 key；失鎖者無法清除新持有者的快照，失效失敗會在 DB 異動前中止。前次失效競爭問題已解決。
+- 產品快取以 version fence 保護快照發布；DB commit 後發布失敗時，Service 透過 `invalidate_after_commit()` 遞增版本並清除快照，防止較早讀取的 writer 發布過時資料。冷載入持相同產品鎖重建。對應 writer／cold loader 交錯及真實 Redis Lua 測試已通過。
+- `replace_products()` 要求標籤名稱映射，缺少名稱時拒絕發布；讀取時還原完整 `label_names`，不完整快照會報錯。前次快照內容問題已解決。
+- 使用專案 `.venv` 與 `.env` 中的整合連線執行完整 pytest：254 passed、0 skipped、1 個 Starlette deprecation warning。
+
+結論：Review Status 為 `RESOLVED`；TASK-004 標記 `DONE`。

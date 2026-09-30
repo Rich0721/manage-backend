@@ -1,6 +1,6 @@
 # TASK-010 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 Review Fix Validation (2026-09-21): 五個 route 均已套用 endpoint-specific response model，
 success/error envelope、Authorization header 同步及 lifespan cleanup 均已驗證。
@@ -55,7 +55,7 @@ HTTP/application mapping 都應有 controller-level regression test。
 ## Resolution
 
 ```text
-Status: OPEN
+Status: RESOLVED
 ```
 
 等待 Programmer Agent 完成修正後重新審查。
@@ -70,3 +70,10 @@ Status: OPEN
 - **P2／尚缺 Service 呼叫驗證：** `tests/controllers/test_user_controller.py:307-308` 在 `make_client(AsyncMock())` 中直接建立匿名 mock，後續無法檢查 `update_permissions` 是否被呼叫。前次 Review 明確要求驗證大寫 `Permission` 在 Schema 階段遭拒，Service 不執行；請保留 mock 參照並加入未呼叫斷言。
 
 結論：Review Status 維持 `OPEN`；TASK-010 交回 Programmer 修正。
+
+## 2026-09-30 最終複審
+
+- `test_update_permission_rejects_capitalized_field()` 現保留 Service mock，完整驗證 422 標準 envelope、沒有 Authorization response header，並以 `assert_not_awaited()` 確認 `update_permissions` 未執行。前次 P2 問題已解決。
+- 使用專案 `.venv` 與 `.env` 中的整合連線執行 `python -m pytest -q`：254 passed、0 skipped、1 個 Starlette deprecation warning；User Manager 回歸通過。
+
+結論：Review Status 為 `RESOLVED`；TASK-010 標記 `DONE`。
