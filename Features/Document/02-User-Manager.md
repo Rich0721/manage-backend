@@ -3,7 +3,7 @@
 ## I. 需求簡介
 
 此功能用於管理使用者的相關資訊，例如使用者登入、登出、註冊及權限管理。
-[Authorization](01-Authorization.md)文檔，與HTTP Header同步，但系統相關驗證皆以`body.auth`為準。
+[Authorization](01-Authorization.md)文檔，相關授權資訊應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 
 ## II. 需求說明
 
@@ -14,7 +14,7 @@ Gherkin: [使用者註冊情境文件](scenarios/02-User-Manager/02-User-Manager
 METHOD: POST
 uri: /userController/register
 
-#### 2-1-1. Request Body Authorization
+#### 2-1-1. Request Authorization
 此接口不需要額外的授權資訊，使用者僅需提供註冊所需的資訊即可。
 
 #### 2-1-2. Request Body Information Object
@@ -28,8 +28,8 @@ uri: /userController/register
 | password | string | 使用者密碼 |
 | confirmPassword | string | 確認密碼 |
 
-#### 2-1-3. Response Body Authorization
-註冊成功或失敗的授權資訊。
+#### 2-1-3. Response Authorization
+註冊成功或失敗的授權資訊，相關資訊應該放入Response Header中，取代原有使用的Response Body中的授權資訊。
 |HTTP Status | Status | Message | 條件 |
 | --- | --- | --- | --- |
 | 200 | Success | 註冊成功 | 註冊成功時返回 |
@@ -83,7 +83,7 @@ uri: /userController/login
 | password | string | 使用者密碼 |
 | isForceLogin | boolean | 是否強制使用者重新登入 |
 
-#### 2-2-3. Response Body Authorization
+#### 2-2-3. Response Authorization
 根據使用者操作會有三種情境:
 1. 使用者登入成功且該帳號未在其他裝置登入
 2. 使用者登入成功但該帳號已在其他裝置登入
@@ -146,9 +146,9 @@ Gherkin: [使用者登出情境文件](scenarios/02-User-Manager/02-User-Manager
 METHOD: POST
 uri: /userController/logout
 
-#### 2-3-1. Request Body Authorization
+#### 2-3-1. Request Authorization
 
-此物件包含使用者登出所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+此物件包含使用者登出所需的授權資訊，應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 
 | 欄位 | 型別 | 說明 | 
 | --- | --- | --- |
@@ -163,9 +163,9 @@ uri: /userController/logout
 | --- | --- | --- |
 | userName | string | 使用者的名稱 |
 
-#### 2-3-3. Response Body Authorization
+#### 2-3-3. Response Authorization
 
-此物件包含使用者登出後返回登出資訊，因已登出不再需要使用者授權，仍需繼承自`authorization`物件，以利Response Body的結構化。
+此物件包含使用者登出後返回登出資訊，因已登出不再需要使用者授權，但仍需返回相關的狀態資訊以告知前端登出結果。
 | Status | Message | 條件 |
 | --- | --- | --- |
 | Success | 登出成功 | 登出成功時返回 |
@@ -192,9 +192,9 @@ Gherkin: [取得使用者資料情境文件](scenarios/02-User-Manager/02-User-M
 METHOD: POST
 uri: /userController/getUsers
 
-#### 2-4-1. Request Body Authorization
+#### 2-4-1. Request Authorization
 
-此物件包含取得使用者資料所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+此物件包含取得使用者資料所需的授權資訊，應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 根據登入後獲得的`Authorization`資訊填寫。
 
 #### 2-4-2. Request Body Information Object
@@ -205,9 +205,9 @@ uri: /userController/getUsers
 | --- | --- | --- |
 | userName | string | 使用者的名稱 |
 
-#### 2-4-3. Response Body Authorization
+#### 2-4-3. Response Authorization
 
-此物件包含取得使用者資料後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+此物件包含取得使用者資料後返回的授權資訊，應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
@@ -244,9 +244,9 @@ Method: PUT
 uri: /userController/updatePermission
 
 
-#### 2-5-1. Request Body Authorization
+#### 2-5-1. Request Authorization
 
-此物件包含更新使用者權限所需的授權資訊，需繼承自`authorization`物件，以利Request Body的結構化。
+此物件包含更新使用者權限所需的授權資訊，應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 根據登入後獲得的`Authorization`資訊填寫。
 
 #### 2-5-2. Request Body Information Object
@@ -260,7 +260,7 @@ uri: /userController/updatePermission
 
 #### 2-5-3. Response Body Authorization
 
-此物件包含更新使用者權限後返回的授權資訊，需繼承自`authorization`物件，以利Response Body的結構化。
+此物件包含更新使用者權限後返回的授權資訊，應放入HTTP Header中，透過客製化欄位或基本Header欄位進行傳遞。
 根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
@@ -310,7 +310,7 @@ Admin權限將由網管人員設定，並無法透過前端使用者介面進行
 已透過條件排除可查詢其他Admin的資料，包括自己，如果修改到其他Admin的權限，前後端都直接拒絕操作。
 
 ### 3-4. Authorization辨別與更新到期期限
-除了`註冊`與`登入`操作外，所有需要授權的操作都必須在Request Body攜帶有效的`Authorization`資訊，請根據以下步驟進行檢查與處理：
+除了`註冊`與`登入`操作外，所有需要授權的操作都必須在HTTP Header中攜帶有效的`Authorization`資訊，請根據以下步驟進行檢查與處理：
 1. 需先檢查`uid`是否有在`Authorization`中存在，如果不存在代表非合法使用者，操作將被拒絕。
 2. 需於Redis中找尋對應的`<uid>:login`key，取出對應的Value並且跟`Authorization`中的資訊進行比對，如果不一致則操作將被拒絕。
 3. 若比對成功，操作將被允許，並可根據需要更新`Authorization`的到期期限，設定為當下時間加上300秒。
