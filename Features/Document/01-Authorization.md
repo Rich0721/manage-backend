@@ -6,23 +6,28 @@
 
 ```json
 {
-    "header":{},
+    "header":{
+        "Status": "",
+        "Message": "",
+        "Uid": "",
+        "Authorization": ""
+    },
     "body": {
-        "auth":{},
         "info":{}
     }
 
 }
 ```
 
-- header: 屬於HTTP請求或響應的標頭資訊
-- body: 包含請求或響應的主體資訊，其中 auth 用於授權資訊，info 用於用戶資訊
-- auth: 包含授權資訊，例如 JWT Token
+- header
+    - 若未特別定義，以HTTP請求或響應的標頭資訊為主
+    - 客製化
+- body: 包含請求或響應的主體資訊，其中 info 用於用戶資訊
 - info: 根據其他需求會配置不同的資訊，但是key值需統一使用`info`
 
 ## II. 需求說明
 
-除了基本的 header 欄位，body 中的 auth 和 info 也需要根據需求進行設置。
+基本Header欄位外，需放入客製化的授權資訊。
 
 ### 2-1. Authorization內容
 
@@ -38,7 +43,7 @@ Authorization 包含以下欄位，請根據以下欄位建立對應的Object:
 
 ### 2-2. Authorization
 
-當使用者登入請求時，伺服器會在響應的 Header 中返回 Authorization 欄位，用於後續請求的授權驗證。
+當使用者登入請求時，伺服器會在響應的 Header 中返回 `Authorization`, `Uid`, `Status`, `Message` 欄位，用於後續請求的授權驗證與用戶狀態情況
 Authorization 欄位已JWT（JSON Web Token）格式返回，用於後續請求的授權驗證。
 如果開發者啟動後端為`DEBUG`模式，可以不必在每次請求中都提供 Authorization 欄位，提高開發者使用Postman或其他測試工具的便利性。
 如果開發者啟動後端為`PRODUCTION`模式，則每次請求都必須提供有效的 Authorization 欄位，以確保安全性。
