@@ -1,11 +1,13 @@
 # Product Manager Implementation Plan
 
+> 2026-10-01 契約修訂：產品 JSON response 的客製化授權資訊改放 `header`，`body` 僅保留 `info`；產品 request 仍由實際 HTTP `uid`／`Authorization` headers 授權。本文件的舊 `body.auth` 封套描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依該計畫 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
+
 ## I. Plan Status
 
 ```text
 Plan Status: Awaiting Review
 Plan Date: 2026-09-30
-Plan Revision Date: 2026-09-30
+Plan Revision Date: 2026-10-01
 Requirement Type: New Requirement
 Plan Revision Type: Requirement Change
 Implementation Gate: 等待本計畫人工審核；第 XI 節有一項情境示例待同步
@@ -142,16 +144,16 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
 | TASK-001 | Product / Label DDL and PO | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-002 | Product API schemas, constants and errors | ADD/MODIFY | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
+| TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
 | TASK-003 | PostgreSQL product and label repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-005 | Product authorization and label resolution | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-006 | Add and get products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-008 | Product routes and dependency wiring | ADD/MODIFY | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-009 | Unit, API and integration coverage | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
+| TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
 
-`ADD` 表示產品相關新檔，`MODIFY` 僅限現有 wiring／錯誤檔；目前狀態以本表及 `Features/Review/03-Product-Manager/` 的複審結果為準。
+原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`PLAN UPDATED` 的 Task 僅處理 Header 契約遷移，實作規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 
 ## VIII. Implementation Steps
 

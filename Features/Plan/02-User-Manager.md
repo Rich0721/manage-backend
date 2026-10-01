@@ -1,12 +1,14 @@
 # User Manager Implementation Plan
 
+> 2026-10-01 契約修訂：使用者本次要求將客製化授權欄位從 `body.auth` 移至 JSON `header`。本文件關於 `body.auth` 的舊封套與 protected request 授權來源描述，均由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依該計畫 HDR-001、HDR-002、HDR-004 遷移。既有 JWT、Redis、權限與其他業務規則維持原計畫。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
+
 ## I. Plan Status
 
 ```text
-Plan Status: Updated
+Plan Status: Awaiting Review（Header 契約遷移）
 Plan Date: 2026-09-21
-Plan Revision Date: 2026-09-30
-Implementation Gate: READY FOR PROGRAMMER（僅 `permission` 測試契約修正）
+Plan Revision Date: 2026-10-01
+Implementation Gate: 2026-10-01 Header 契約遷移待 `01-Authorization-Header-Change.md` 審核；既有 `permission` 測試契約修正紀錄保留
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -547,7 +549,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
+| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -556,10 +558,10 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
+| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
-TASK-003、TASK-010 與 TASK-011 的 Code Review Fix 已驗證通過；所有 Task 均為 `DONE`。
+2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更使 TASK-001、TASK-010 回到 `PLAN UPDATED`，待新計畫審核與重新實作。
 
 ## IX. Implementation Steps
 

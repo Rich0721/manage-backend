@@ -1,10 +1,13 @@
 # Authorization Base Objects and Redis Connection Implementation Plan
 
+> 2026-10-01 契約修訂：授權與狀態欄位改放 JSON `header`，`body` 僅保留 `info`。本文件原有 `body.auth` 設計為已完成歷史紀錄；新的實作規格、影響範圍與測試以 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 為準。TASK-001 需重新實作；TASK-002/003 不受影響。
+
 ## I. Plan Status
 
 ```text
 Plan Status: Awaiting Review
 Plan Date: 2026-09-17
+Plan Revision Date: 2026-10-01（Header 契約修訂另見 01-Authorization-Header-Change.md）
 ```
 
 本階段只規劃 Authorization 基礎 Object 與 Redis Connection。JWT 產生、JWT
@@ -244,7 +247,7 @@ Responsibilities：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | Authorization Base Objects | ADD | 2026-09-17 | DONE | 2026-09-18 | 2026-09-18 |
+| TASK-001 | Authorization Base Objects | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
 | TASK-002 | Redis Settings and Dependencies | ADD | 2026-09-17 | DONE | 2026-09-18 | 2026-09-18 |
 | TASK-003 | Async Redis Connection | ADD | 2026-09-17 | DONE | 2026-09-18 | 2026-09-18 |
 
