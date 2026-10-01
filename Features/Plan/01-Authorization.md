@@ -1,6 +1,6 @@
 # Authorization Base Objects and Redis Connection Implementation Plan
 
-> 2026-10-01 契約修訂：授權與狀態欄位改放 JSON `header`，`body` 僅保留 `info`。本文件原有 `body.auth` 設計為已完成歷史紀錄；新的實作規格、影響範圍與測試以 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 為準。TASK-001 需重新實作；TASK-002/003 不受影響。
+> 2026-10-01 契約修訂：授權與狀態資訊以實際 HTTP Header 傳遞，取代 `body.auth`；JSON `body` 僅保留 `info`。本文件原有封套設計是歷史紀錄；新的實作規格、影響範圍與測試以 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 為準。TASK-001 需重新實作；TASK-002/003 不受影響。
 
 ## I. Plan Status
 

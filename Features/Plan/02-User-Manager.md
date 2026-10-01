@@ -1,6 +1,6 @@
 # User Manager Implementation Plan
 
-> 2026-10-01 契約修訂：使用者本次要求將客製化授權欄位從 `body.auth` 移至 JSON `header`。本文件關於 `body.auth` 的舊封套與 protected request 授權來源描述，均由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依該計畫 HDR-001、HDR-002、HDR-004 遷移。既有 JWT、Redis、權限與其他業務規則維持原計畫。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
+> 2026-10-01 契約修訂：`Features/Document/02-User-Manager.md` 現要求授權資訊放在實際 HTTP Header。protected request 以 HTTP `Uid`、`Authorization` 驗證；response 以 HTTP Header 傳遞狀態、訊息與適用的授權資訊。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-002、HDR-004 遷移。既有 JWT、Redis、權限與其他業務規則維持原計畫。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
 ## I. Plan Status
 

@@ -1,6 +1,6 @@
 # Product Manager Implementation Plan
 
-> 2026-10-01 契約修訂：產品 JSON response 的客製化授權資訊改放 `header`，`body` 僅保留 `info`；產品 request 仍由實際 HTTP `uid`／`Authorization` headers 授權。本文件的舊 `body.auth` 封套描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依該計畫 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
+> 2026-10-01 契約修訂：產品 request 仍由實際 HTTP `Uid`／`Authorization` headers 授權；response 的 `Status`、`Message` 及適用的 `Uid`、`Authorization` 也放在實際 HTTP Header，JSON `body` 僅保留 `info`。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
 ## I. Plan Status
 
