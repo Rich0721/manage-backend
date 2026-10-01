@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock
+from urllib.parse import unquote
 
 from fastapi.testclient import TestClient
 import pytest
@@ -47,7 +48,7 @@ def make_client(service: AsyncMock) -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def test_add_product_uses_headers_and_ignores_body_auth() -> None:
+def test_add_product_uses_headers_without_body_auth() -> None:
     service = AsyncMock()
     service.add.return_value = ProtectedProductResult(
         context=AuthorizationContext("header-user", "Bearer renewed", False),
@@ -61,7 +62,6 @@ def test_add_product_uses_headers_and_ignores_body_auth() -> None:
     )
     payload = {
         "body": {
-            "auth": {"uid": "body-user", "authorization": "body-token"},
             "info": {
                 "name": "Product",
                 "label_names": "label1",
@@ -79,10 +79,19 @@ def test_add_product_uses_headers_and_ignores_body_auth() -> None:
         )
 
     assert response.status_code == 200
+    assert response.headers["Status"] == AuthStatus.SUCCESS
+    assert unquote(response.headers["Message"]) == ProductMessage.SUCCESS
+    assert response.headers["Uid"] == "header-user"
     assert response.headers["Authorization"] == "Bearer renewed"
     auth = service.add.await_args.args[0]
     assert auth.uid == "header-user"
     assert auth.authorization == "Bearer request"
+    assert response.json()["header"] == {
+        "Status": AuthStatus.SUCCESS,
+        "Message": ProductMessage.SUCCESS,
+        "Uid": "header-user",
+        "Authorization": "Bearer renewed",
+    }
     assert response.json()["body"]["info"] == {
         "id": "1790705105001",
         "name": "Product",
@@ -103,6 +112,33 @@ def test_get_products_rejects_invalid_product_id_before_service() -> None:
 
     assert response.status_code == 422
     service.get.assert_not_awaited()
+
+
+def test_add_product_does_not_use_json_header_as_authorization() -> None:
+    service = AsyncMock()
+    payload = {
+        "header": {
+            "Uid": "json-user",
+            "Authorization": "Bearer json-token",
+        },
+        "body": {
+            "info": {
+                "name": "Product",
+                "label_names": "label1",
+                "cost": 100,
+                "price": 150,
+            },
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post(
+            "/productController/addProduct",
+            json=payload,
+        )
+
+    assert response.status_code == 422
+    service.add.assert_not_awaited()
 
 
 def test_get_update_and_delete_routes_return_product_lists() -> None:
@@ -164,18 +200,40 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
                 json=payload,
             )
             assert response.status_code == 200
+            assert response.headers["Status"] == AuthStatus.SUCCESS
+            assert unquote(response.headers["Message"]) == (
+                ProductMessage.SUCCESS
+            )
             assert response.json()["body"]["info"][0]["id"] == (
                 "1790705105001"
             )
 
 
 @pytest.mark.parametrize(
-    ("method", "url", "payload", "service_method", "error", "status", "auth_status", "message"),
+    (
+        "method",
+        "url",
+        "payload",
+        "service_method",
+        "error",
+        "status",
+        "auth_status",
+        "message",
+    ),
     [
         (
             "post",
             "/productController/addProduct",
-            {"body": {"info": {"name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            {
+                "body": {
+                    "info": {
+                        "name": "Product",
+                        "label_names": "label1",
+                        "cost": 100,
+                        "price": 150,
+                    },
+                },
+            },
             "add",
             ProductLabelNotFoundError(),
             400,
@@ -195,7 +253,17 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
         (
             "put",
             "/productController/updateProduct",
-            {"body": {"info": {"id": "1790705105001", "name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            {
+                "body": {
+                    "info": {
+                        "id": "1790705105001",
+                        "name": "Product",
+                        "label_names": "label1",
+                        "cost": 100,
+                        "price": 150,
+                    },
+                },
+            },
             "update",
             ProductNotFoundError(),
             404,
@@ -205,7 +273,16 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
         (
             "post",
             "/productController/addProduct",
-            {"body": {"info": {"name": "Product", "label_names": "label1", "cost": 100, "price": 150}}},
+            {
+                "body": {
+                    "info": {
+                        "name": "Product",
+                        "label_names": "label1",
+                        "cost": 100,
+                        "price": 150,
+                    },
+                },
+            },
             "add",
             ProductConflictError(),
             409,
@@ -248,16 +325,22 @@ def test_product_routes_map_service_errors_to_standard_envelopes(
     getattr(service, service_method).side_effect = error
 
     with make_client(service) as client:
-        response = client.request(method, url, headers={"uid": "header-user"}, json=payload)
+        response = client.request(
+            method,
+            url,
+            headers={"uid": "header-user"},
+            json=payload,
+        )
 
     assert response.status_code == status
+    assert response.headers["Status"] == auth_status
+    assert unquote(response.headers["Message"]) == message
+    assert response.headers.get("Uid") is None
     assert response.headers.get("Authorization") is None
+    assert response.json()["header"] == {
+        "Status": auth_status,
+        "Message": message,
+    }
     assert response.json()["body"] == {
-        "auth": {
-            "status": auth_status,
-            "message": message,
-            "uid": None,
-            "authorization": None,
-        },
         "info": {},
     }

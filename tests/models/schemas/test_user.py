@@ -23,7 +23,6 @@ def test_register_schema_normalizes_email_and_serializes_aliases() -> None:
     request = RegisterRequest(
         header={},
         body={
-            "auth": {},
             "info": {
                 "email": "User@Example.COM",
                 "userName": "測試者",
@@ -76,7 +75,6 @@ def test_permission_contract_uses_lowercase_alias() -> None:
 def test_permission_request_info_is_json_list() -> None:
     request = UpdatePermissionRequest(
         body={
-            "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": [
                 {"email": "user@example.com", "permission": "user"},
             ],
@@ -120,7 +118,6 @@ def test_permission_list_rejects_invalid_element() -> None:
     with pytest.raises(ValidationError):
         UpdatePermissionRequest(
             body={
-                "auth": {},
                 "info": ["invalid"],
             },
         )
@@ -154,13 +151,12 @@ def test_user_name_boundary_is_enforced() -> None:
 
 def test_required_request_field_is_rejected() -> None:
     with pytest.raises(ValidationError):
-        LogoutRequest(body={"auth": {}, "info": {}})
+        LogoutRequest(body={"info": {}})
 
 
 def test_response_models_serialize_public_aliases() -> None:
     register = RegisterResponse(
         body={
-            "auth": {"status": "Success"},
             "info": RegisterResponseInfo(
                 uid="uid",
                 email="user@example.com",
@@ -170,7 +166,6 @@ def test_response_models_serialize_public_aliases() -> None:
     )
     login = LoginResponse(
         body={
-            "auth": {"status": "Success"},
             "info": LoginResponseInfo(userName="User"),
         },
     )
@@ -184,10 +179,10 @@ def test_response_models_serialize_public_aliases() -> None:
 
 def test_envelope_mutable_header_is_not_shared() -> None:
     first = UserEnvelope[LoginResponseInfo](
-        body={"auth": {}, "info": {"userName": "First"}},
+        body={"info": {"userName": "First"}},
     )
     second = UserEnvelope[LoginResponseInfo](
-        body={"auth": {}, "info": {"userName": "Second"}},
+        body={"info": {"userName": "Second"}},
     )
 
     first.header["request"] = "first"

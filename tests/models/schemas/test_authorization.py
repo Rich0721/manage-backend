@@ -12,12 +12,6 @@ def test_empty_envelope_serializes_expected_structure() -> None:
     assert envelope.model_dump() == {
         "header": {},
         "body": {
-            "auth": {
-                "status": None,
-                "message": None,
-                "uid": None,
-                "authorization": None,
-            },
             "info": {},
         },
     }
@@ -77,7 +71,6 @@ def test_dynamic_header_and_info_content_is_preserved() -> None:
     envelope = AuthorizationEnvelope(
         header={"request_id": "request-1", "attempt": 2},
         body={
-            "auth": {"uid": "user-1"},
             "info": {"roles": ["admin"], "active": True},
         },
     )
@@ -98,10 +91,7 @@ def test_mutable_defaults_are_not_shared_between_instances() -> None:
 
     first.header["request_id"] = "request-1"
     first.body.info["value"] = "first"
-    first.body.auth.status = "success"
 
     assert second.header == {}
     assert second.body.info == {}
-    assert second.body.auth.status is None
     assert first.body is not second.body
-    assert first.body.auth is not second.body.auth

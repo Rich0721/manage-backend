@@ -15,9 +15,8 @@ class AuthorizationObject(BaseModel):
 
 
 class AuthorizationBody(BaseModel):
-    auth: AuthorizationObject = Field(
-        default_factory=AuthorizationObject,
-    )
+    model_config = ConfigDict(extra="forbid")
+
     info: dict[str, Any] = Field(default_factory=dict)
 
 

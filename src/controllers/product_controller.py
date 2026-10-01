@@ -7,7 +7,7 @@ from src.constants.user import AuthStatus
 from src.controllers.dependencies import ProductServiceDependency
 from src.controllers.user_controller import build_envelope
 from src.controllers.user_controller import error_responses
-from src.controllers.user_controller import synchronize_authorization_header
+from src.controllers.user_controller import synchronize_authorization_headers
 from src.models.schemas.authorization import AuthorizationObject
 from src.models.schemas.product import AddProductRequest
 from src.models.schemas.product import AddProductResponse
@@ -18,7 +18,7 @@ from src.models.schemas.product import UpdateProductRequest
 
 router = APIRouter(prefix="/productController", tags=["Product Manager"])
 
-UidHeader = Annotated[str, Header(alias="uid")]
+UidHeader = Annotated[str, Header(alias="Uid")]
 AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
 ProductIdQuery = Annotated[
     str,
@@ -52,8 +52,17 @@ async def add_product(
     service: ProductServiceDependency,
     authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
-    result = await service.add(header_auth(uid, authorization), payload.body.info)
-    synchronize_authorization_header(response, result.context.authorization)
+    result = await service.add(
+        header_auth(uid, authorization),
+        payload.body.info,
+    )
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=ProductMessage.SUCCESS,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
+    )
     return result_envelope(result)
 
 
@@ -70,7 +79,13 @@ async def get_products(
     authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
     result = await service.get(header_auth(uid, authorization), product_id)
-    synchronize_authorization_header(response, result.context.authorization)
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=ProductMessage.SUCCESS,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
+    )
     return result_envelope(result)
 
 
@@ -90,7 +105,13 @@ async def update_product(
         header_auth(uid, authorization),
         payload.body.info,
     )
-    synchronize_authorization_header(response, result.context.authorization)
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=ProductMessage.SUCCESS,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
+    )
     return result_envelope(result)
 
 
@@ -110,5 +131,11 @@ async def delete_product(
         header_auth(uid, authorization),
         payload.body.info,
     )
-    synchronize_authorization_header(response, result.context.authorization)
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=ProductMessage.SUCCESS,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
+    )
     return result_envelope(result)

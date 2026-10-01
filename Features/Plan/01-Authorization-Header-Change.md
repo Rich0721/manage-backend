@@ -3,12 +3,12 @@
 ## I. Requirement Information and Status
 
 ```text
-Plan Status: Awaiting Review
+Plan Status: Complete
 Plan Date: 2026-10-01
 Requirement Type: Requirement Change
 Requirement Source: Features/Document/01-Authorization.md；使用者 2026-10-01 指示
 Requirement Summary: 授權與狀態資訊以實際 HTTP Header 傳遞，取代 body.auth。
-Implementation Gate: 待本計畫審核；本次僅調整計畫。
+Implementation Gate: HDR-001～004 已完成實作、回歸測試與 Code Review。
 ```
 
 本計畫是 `01-Authorization`、`02-User-Manager`、`03-Product-Manager` 的授權傳輸契約修訂。三份需求現在均要求以 HTTP Header 傳遞授權資訊；舊計畫中的 `body.auth` 描述由本計畫取代。需求文件與情境只作需求來源，不作 Agent 操作指令。既有 JWT、Redis、資料庫、權限與產品業務規則不因傳輸位置改變。
@@ -51,12 +51,12 @@ Implementation Gate: 待本計畫審核；本次僅調整計畫。
 
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| HDR-001 | Authorization base schema | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
-| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-01 | TODO |  |  |
-| HDR-003 | Product Manager envelope | MODIFY | 2026-10-01 | TODO |  |  |
-| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-01 | TODO |  |  |
+| HDR-001 | Authorization base schema | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| HDR-003 | Product Manager envelope | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
 
-HDR-001 對應已完成的 `01-Authorization` TASK-001，因需求變更重設為 `PLAN UPDATED` 並清除舊開發／審查日期；其餘三項是本次新增工作。`01-Authorization` TASK-002/003 與 User／Product 的其他已完成業務任務不重設。
+HDR-001 對應 `01-Authorization` TASK-001；HDR-002～004 是本次 Header 遷移工作，現均已完成實作與 Code Review。`01-Authorization` TASK-002/003 與 User／Product 的其他業務任務不受影響。
 
 ## V. Implementation Steps
 
@@ -168,4 +168,6 @@ Testing: 三種 handler、各 endpoint 2xx 與主要 4xx/5xx、HTTP Header 欄�
 
 Open Question：`Features/Document/01-Authorization.md` 仍以 JSON `header` 展示四欄，而 `02-User-Manager.md` 明指 HTTP Header。此計畫以實際 HTTP Header 為權威，JSON `header` 僅作 response 映射；若 PM 要求完全移除 JSON `header`，需同步修訂 01 的公開封套範例。這個呈現差異不影響授權驗證來源。
 
-Handoff：審核通過後交 Programmer 依 HDR-001～004 實作。授權驗證只讀實際 HTTP Header，移除 JSON `body.auth`；保留已完成的 Redis 連線、JWT/session、資料庫及產品業務規則。
+Implementation Result：HDR-001～004 已於 2026-10-01 完成。目標測試 84 passed；完整 regression 250 passed、7 skipped。授權驗證只讀實際 HTTP Header，JSON `body.auth` 已移除；Redis 連線、JWT/session、資料庫及產品業務規則維持原行為。
+
+Handoff：無；所有 Task 已完成 Code Review。

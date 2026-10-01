@@ -12,9 +12,6 @@ from pydantic import (
     field_validator,
 )
 
-from src.models.schemas.authorization import AuthorizationObject
-
-
 InfoT = TypeVar("InfoT")
 ProductId = Annotated[str, StringConstraints(pattern=r"^\d{13}$")]
 Money = Annotated[Decimal, Field(max_digits=10, decimal_places=2)]
@@ -23,7 +20,6 @@ Money = Annotated[Decimal, Field(max_digits=10, decimal_places=2)]
 class ProductBody(BaseModel, Generic[InfoT]):
     model_config = ConfigDict(extra="forbid")
 
-    auth: AuthorizationObject = Field(default_factory=AuthorizationObject)
     info: InfoT
 
 

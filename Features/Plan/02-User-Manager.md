@@ -5,7 +5,7 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Awaiting Review（Header 契約遷移）
+Plan Status: Complete
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-10-01
 Implementation Gate: 2026-10-01 Header 契約遷移待 `01-Authorization-Header-Change.md` 審核；既有 `permission` 測試契約修正紀錄保留
@@ -549,7 +549,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
+| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -558,10 +558,10 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-01 | PLAN UPDATED |  |  |
+| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
-2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更使 TASK-001、TASK-010 回到 `PLAN UPDATED`，待新計畫審核與重新實作。
+2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更也已完成 TASK-001、TASK-010 實作與 Code Review。
 
 ## IX. Implementation Steps
 

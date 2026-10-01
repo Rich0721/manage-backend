@@ -13,9 +13,6 @@ from pydantic import StringConstraints
 from pydantic import field_validator
 
 from src.constants.user import UserRole
-from src.models.schemas.authorization import AuthorizationObject
-
-
 InfoT = TypeVar("InfoT")
 EncryptedPassword = Annotated[
     str,
@@ -26,7 +23,6 @@ EncryptedPassword = Annotated[
 class UserBody(BaseModel, Generic[InfoT]):
     model_config = ConfigDict(extra="forbid")
 
-    auth: AuthorizationObject = Field(default_factory=AuthorizationObject)
     info: InfoT
 
 

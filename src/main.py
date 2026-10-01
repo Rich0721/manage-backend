@@ -15,6 +15,7 @@ from src.config.redis import RedisConnectionManager
 from src.config.settings import Settings
 from src.constants.user import AuthStatus
 from src.constants.user import UserMessage
+from src.controllers.user_controller import build_http_authorization_headers
 from src.controllers.user_controller import build_error_envelope
 from src.controllers.product_controller import router as product_router
 from src.controllers.user_controller import router as user_router
@@ -57,6 +58,10 @@ def create_app(
     ) -> JSONResponse:
         return JSONResponse(
             status_code=error.status_code,
+            headers=build_http_authorization_headers(
+                status=error.auth_status,
+                message=error.public_message,
+            ),
             content=build_error_envelope(
                 status=error.auth_status,
                 message=error.public_message,
@@ -79,6 +84,10 @@ def create_app(
         ]
         return JSONResponse(
             status_code=422,
+            headers=build_http_authorization_headers(
+                status=AuthStatus.FAILED,
+                message=UserMessage.VALIDATION_ERROR,
+            ),
             content=build_error_envelope(
                 status=AuthStatus.FAILED,
                 message=UserMessage.VALIDATION_ERROR,
@@ -99,6 +108,10 @@ def create_app(
         )
         return JSONResponse(
             status_code=500,
+            headers=build_http_authorization_headers(
+                status=AuthStatus.FAILED,
+                message=UserMessage.INTERNAL_ERROR,
+            ),
             content=build_error_envelope(
                 status=AuthStatus.FAILED,
                 message=UserMessage.INTERNAL_ERROR,

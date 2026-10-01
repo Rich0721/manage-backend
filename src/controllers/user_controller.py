@@ -1,6 +1,9 @@
+from typing import Annotated
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter
+from fastapi import Header
 from fastapi import Response
 from pydantic import BaseModel
 
@@ -23,12 +26,89 @@ from src.models.schemas.user import UpdatePermissionResponse
 
 router = APIRouter(prefix="/userController", tags=["User Manager"])
 
+UidHeader = Annotated[str | None, Header(alias="Uid")]
+AuthorizationHeader = Annotated[
+    str | None,
+    Header(alias="Authorization"),
+]
+
 
 def error_responses(*status_codes: int) -> dict[int, dict[str, Any]]:
-    return {
-        status_code: {"model": ErrorResponse}
-        for status_code in status_codes
+    header_schema = {
+        "schema": {"type": "string"},
     }
+    response_headers = {
+        "Status": {
+            **header_schema,
+            "description": "Application result status.",
+        },
+        "Message": {
+            **header_schema,
+            "description": (
+                "Application result message. Non-ASCII text is UTF-8 "
+                "percent encoded."
+            ),
+        },
+        "Uid": {
+            **header_schema,
+            "description": "Authenticated user identifier when available.",
+        },
+        "Authorization": {
+            **header_schema,
+            "description": "Bearer token when available.",
+        },
+    }
+    responses: dict[int, dict[str, Any]] = {
+        200: {"headers": response_headers},
+    }
+    responses.update(
+        {
+            status_code: {
+                "model": ErrorResponse,
+                "headers": response_headers,
+            }
+            for status_code in status_codes
+        },
+    )
+    return responses
+
+
+def _authorization_headers(
+    *,
+    status: str,
+    message: str,
+    uid: str | None = None,
+    authorization: str | None = None,
+    encode_message: bool = False,
+) -> dict[str, str]:
+    header_message = message
+    if encode_message and not message.isascii():
+        header_message = quote(message, safe=" ")
+    headers = {
+        "Status": status,
+        "Message": header_message,
+    }
+    if uid is not None:
+        headers["Uid"] = uid
+    if authorization is not None:
+        headers["Authorization"] = authorization
+    return headers
+
+
+def build_http_authorization_headers(
+    *,
+    status: str,
+    message: str,
+    uid: str | None = None,
+    authorization: str | None = None,
+) -> dict[str, str]:
+    return _authorization_headers(
+        status=status,
+        message=message,
+        uid=uid,
+        authorization=authorization,
+        encode_message=True,
+    )
 
 
 def build_envelope(
@@ -43,16 +123,15 @@ def build_envelope(
         serialized_info = info.model_dump(by_alias=True, mode="json")
     else:
         serialized_info = info
-    auth = AuthorizationObject(
+    headers = _authorization_headers(
         status=status,
         message=message,
         uid=uid,
         authorization=authorization,
     )
     return {
-        "header": {},
+        "header": headers,
         "body": {
-            "auth": auth.model_dump(mode="json"),
             "info": serialized_info,
         },
     }
@@ -70,12 +149,29 @@ def build_error_envelope(
     return envelope.model_dump(by_alias=True, mode="json")
 
 
-def synchronize_authorization_header(
+def synchronize_authorization_headers(
     response: Response,
-    authorization: str | None,
+    *,
+    status: str,
+    message: str,
+    uid: str | None = None,
+    authorization: str | None = None,
 ) -> None:
-    if authorization is not None:
-        response.headers["Authorization"] = authorization
+    response.headers.update(
+        build_http_authorization_headers(
+            status=status,
+            message=message,
+            uid=uid,
+            authorization=authorization,
+        ),
+    )
+
+
+def header_auth(
+    uid: str | None,
+    authorization: str | None,
+) -> AuthorizationObject:
+    return AuthorizationObject(uid=uid, authorization=authorization)
 
 
 @router.post(
@@ -86,9 +182,15 @@ def synchronize_authorization_header(
 )
 async def register(
     payload: RegisterRequest,
+    response: Response,
     service: UserServiceDependency,
 ) -> dict[str, Any]:
     info = await service.register(payload.body.info)
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.REGISTERED,
+    )
     return build_envelope(
         status=AuthStatus.SUCCESS,
         message=UserMessage.REGISTERED,
@@ -108,7 +210,13 @@ async def login(
     service: UserServiceDependency,
 ) -> dict[str, Any]:
     result = await service.login(payload.body.info)
-    synchronize_authorization_header(response, result.authorization)
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.LOGGED_IN,
+        uid=result.uid,
+        authorization=result.authorization,
+    )
     return build_envelope(
         status=AuthStatus.SUCCESS,
         message=UserMessage.LOGGED_IN,
@@ -126,9 +234,17 @@ async def login(
 )
 async def logout(
     payload: LogoutRequest,
+    response: Response,
     service: UserServiceDependency,
+    uid: UidHeader = None,
+    authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
-    info = await service.logout(payload.body.auth)
+    info = await service.logout(header_auth(uid, authorization))
+    synchronize_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.LOGGED_OUT,
+    )
     return build_envelope(
         status=AuthStatus.SUCCESS,
         message=UserMessage.LOGGED_OUT,
@@ -146,11 +262,16 @@ async def get_users(
     payload: GetUsersRequest,
     response: Response,
     service: UserServiceDependency,
+    uid: UidHeader = None,
+    authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
-    result = await service.get_users(payload.body.auth)
-    synchronize_authorization_header(
+    result = await service.get_users(header_auth(uid, authorization))
+    synchronize_authorization_headers(
         response,
-        result.context.authorization,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.USERS_RETRIEVED,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
     )
     return build_envelope(
         status=AuthStatus.SUCCESS,
@@ -171,14 +292,19 @@ async def update_permissions(
     payload: UpdatePermissionRequest,
     response: Response,
     service: UserServiceDependency,
+    uid: UidHeader = None,
+    authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
     result = await service.update_permissions(
-        payload.body.auth,
+        header_auth(uid, authorization),
         payload.body.info.root,
     )
-    synchronize_authorization_header(
+    synchronize_authorization_headers(
         response,
-        result.context.authorization,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.PERMISSIONS_UPDATED,
+        uid=result.context.uid,
+        authorization=result.context.authorization,
     )
     return build_envelope(
         status=AuthStatus.SUCCESS,

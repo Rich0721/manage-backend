@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock
+from urllib.parse import unquote
 
 import pytest
 from fastapi.testclient import TestClient
@@ -57,6 +58,20 @@ def make_client(service: AsyncMock) -> TestClient:
     return TestClient(application, raise_server_exceptions=False)
 
 
+def assert_authorization_headers(
+    response: object,
+    *,
+    status: str,
+    message: str,
+    uid: str | None = None,
+    authorization: str | None = None,
+) -> None:
+    assert response.headers["Status"] == status
+    assert unquote(response.headers["Message"]) == message
+    assert response.headers.get("Uid") == uid
+    assert response.headers.get("Authorization") == authorization
+
+
 def test_all_exact_routes_are_registered() -> None:
     application = create_app(
         settings_factory=TestSettings,
@@ -81,13 +96,25 @@ def test_all_exact_routes_are_registered() -> None:
             "application/json"
         ]["schema"]
         assert schema.get("additionalProperties") is not True
+        assert set(operation["responses"]["200"]["headers"]) == {
+            "Status",
+            "Message",
+            "Uid",
+            "Authorization",
+        }
         validation_schema = operation["responses"]["422"]["content"][
             "application/json"
         ]["schema"]
         assert validation_schema.get("additionalProperties") is not True
+        assert set(operation["responses"]["422"]["headers"]) == {
+            "Status",
+            "Message",
+            "Uid",
+            "Authorization",
+        }
 
 
-def test_register_response_has_no_authorization_header() -> None:
+def test_register_response_uses_status_headers_without_token() -> None:
     service = AsyncMock()
     service.register.return_value = RegisterResponseInfo(
         uid="uid",
@@ -97,7 +124,6 @@ def test_register_response_has_no_authorization_header() -> None:
     payload = {
         "header": {},
         "body": {
-            "auth": {},
             "info": {
                 "email": "user@example.com",
                 "userName": "User",
@@ -111,16 +137,17 @@ def test_register_response_has_no_authorization_header() -> None:
         response = client.post("/userController/register", json=payload)
 
     assert response.status_code == 200
-    assert "authorization" not in response.headers
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.REGISTERED,
+    )
     assert response.json() == {
-        "header": {},
+        "header": {
+            "Status": AuthStatus.SUCCESS,
+            "Message": UserMessage.REGISTERED,
+        },
         "body": {
-            "auth": {
-                "status": AuthStatus.SUCCESS,
-                "message": UserMessage.REGISTERED,
-                "uid": None,
-                "authorization": None,
-            },
             "info": {
                 "email": "user@example.com",
                 "uid": "uid",
@@ -130,7 +157,7 @@ def test_register_response_has_no_authorization_header() -> None:
     }
 
 
-def test_login_synchronizes_body_and_http_authorization() -> None:
+def test_login_returns_authorization_in_http_headers() -> None:
     service = AsyncMock()
     service.login.return_value = LoginResult(
         uid="uid",
@@ -140,7 +167,6 @@ def test_login_synchronizes_body_and_http_authorization() -> None:
     payload = {
         "header": {},
         "body": {
-            "auth": {},
             "info": {
                 "email": "user@example.com",
                 "password": PASSWORD,
@@ -153,14 +179,20 @@ def test_login_synchronizes_body_and_http_authorization() -> None:
         response = client.post("/userController/login", json=payload)
 
     assert response.status_code == 200
-    assert response.headers["Authorization"] == "Bearer token"
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.LOGGED_IN,
+        uid="uid",
+        authorization="Bearer token",
+    )
+    assert response.json()["header"] == {
+        "Status": AuthStatus.SUCCESS,
+        "Message": UserMessage.LOGGED_IN,
+        "Uid": "uid",
+        "Authorization": "Bearer token",
+    }
     assert response.json()["body"] == {
-        "auth": {
-            "status": AuthStatus.SUCCESS,
-            "message": UserMessage.LOGGED_IN,
-            "uid": "uid",
-            "authorization": "Bearer token",
-        },
         "info": {"userName": "User"},
     }
 
@@ -170,7 +202,6 @@ def test_existing_session_maps_to_409_without_token() -> None:
     service.login.side_effect = ExistingSessionError()
     payload = {
         "body": {
-            "auth": {},
             "info": {
                 "email": "user@example.com",
                 "password": PASSWORD,
@@ -183,16 +214,18 @@ def test_existing_session_maps_to_409_without_token() -> None:
         response = client.post("/userController/login", json=payload)
 
     assert response.status_code == 409
-    assert "authorization" not in response.headers
-    assert response.json()["body"]["auth"] == {
-        "status": AuthStatus.FAILED,
-        "message": UserMessage.ALREADY_LOGGED_IN,
-        "uid": None,
-        "authorization": None,
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.FAILED,
+        message=UserMessage.ALREADY_LOGGED_IN,
+    )
+    assert response.json()["header"] == {
+        "Status": AuthStatus.FAILED,
+        "Message": UserMessage.ALREADY_LOGGED_IN,
     }
 
 
-def test_get_users_echoes_validated_body_token() -> None:
+def test_get_users_uses_request_headers_and_returns_renewed_token() -> None:
     service = AsyncMock()
     service.get_users.return_value = ProtectedResult(
         context=AuthorizationContext("uid", "Bearer token", False),
@@ -208,23 +241,32 @@ def test_get_users_echoes_validated_body_token() -> None:
     )
     payload = {
         "body": {
-            "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": {"userName": "Caller"},
         },
     }
 
     with make_client(service) as client:
-        response = client.post("/userController/getUsers", json=payload)
+        response = client.post(
+            "/userController/getUsers",
+            headers={
+                "Uid": "uid",
+                "Authorization": "Bearer request",
+            },
+            json=payload,
+        )
 
     assert response.status_code == 200
-    assert response.headers["Authorization"] == "Bearer token"
+    auth = service.get_users.await_args.args[0]
+    assert auth.uid == "uid"
+    assert auth.authorization == "Bearer request"
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.USERS_RETRIEVED,
+        uid="uid",
+        authorization="Bearer token",
+    )
     assert response.json()["body"] == {
-        "auth": {
-            "status": AuthStatus.SUCCESS,
-            "message": UserMessage.USERS_RETRIEVED,
-            "uid": "uid",
-            "authorization": "Bearer token",
-        },
         "info": [
             {
                 "email": "user@example.com",
@@ -235,28 +277,57 @@ def test_get_users_echoes_validated_body_token() -> None:
     }
 
 
+def test_get_users_does_not_use_json_header_as_authorization() -> None:
+    service = AsyncMock()
+    service.get_users.side_effect = AuthorizationRequiredError()
+    payload = {
+        "header": {
+            "Uid": "json-user",
+            "Authorization": "Bearer json-token",
+        },
+        "body": {
+            "info": {"userName": "Caller"},
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post("/userController/getUsers", json=payload)
+
+    assert response.status_code == 401
+    auth = service.get_users.await_args.args[0]
+    assert auth.uid is None
+    assert auth.authorization is None
+
+
 def test_logout_does_not_return_authorization_header() -> None:
     service = AsyncMock()
     service.logout.return_value = LogoutResponseInfo(userName="Stored Name")
     payload = {
         "body": {
-            "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": {"userName": "Untrusted Name"},
         },
     }
 
     with make_client(service) as client:
-        response = client.post("/userController/logout", json=payload)
+        response = client.post(
+            "/userController/logout",
+            headers={
+                "Uid": "uid",
+                "Authorization": "Bearer token",
+            },
+            json=payload,
+        )
 
     assert response.status_code == 200
-    assert "authorization" not in response.headers
+    auth = service.logout.await_args.args[0]
+    assert auth.uid == "uid"
+    assert auth.authorization == "Bearer token"
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.LOGGED_OUT,
+    )
     assert response.json()["body"] == {
-        "auth": {
-            "status": AuthStatus.SUCCESS,
-            "message": UserMessage.LOGGED_OUT,
-            "uid": None,
-            "authorization": None,
-        },
         "info": {"userName": "Stored Name"},
     }
 
@@ -269,7 +340,6 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
     )
     payload = {
         "body": {
-            "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": [
                 {"email": "user@example.com", "permission": "manager"},
             ],
@@ -279,18 +349,25 @@ def test_update_permission_uses_list_contract_and_echoes_token() -> None:
     with make_client(service) as client:
         response = client.put(
             "/userController/updatePermission",
+            headers={
+                "Uid": "uid",
+                "Authorization": "Bearer request",
+            },
             json=payload,
         )
 
     assert response.status_code == 200
-    assert response.headers["Authorization"] == "Bearer token"
+    auth = service.update_permissions.await_args.args[0]
+    assert auth.uid == "uid"
+    assert auth.authorization == "Bearer request"
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.SUCCESS,
+        message=UserMessage.PERMISSIONS_UPDATED,
+        uid="uid",
+        authorization="Bearer token",
+    )
     assert response.json()["body"] == {
-        "auth": {
-            "status": AuthStatus.SUCCESS,
-            "message": UserMessage.PERMISSIONS_UPDATED,
-            "uid": "uid",
-            "authorization": "Bearer token",
-        },
         "info": {},
     }
 
@@ -299,7 +376,6 @@ def test_update_permission_rejects_capitalized_field() -> None:
     service = AsyncMock()
     payload = {
         "body": {
-            "auth": {"uid": "uid", "authorization": "Bearer token"},
             "info": [{"email": "user@example.com", "Permission": "manager"}],
         },
     }
@@ -308,14 +384,12 @@ def test_update_permission_rejects_capitalized_field() -> None:
         response = client.put("/userController/updatePermission", json=payload)
 
     assert response.status_code == 422
-    assert response.headers.get("Authorization") is None
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.FAILED,
+        message=UserMessage.VALIDATION_ERROR,
+    )
     assert response.json()["body"] == {
-        "auth": {
-            "status": AuthStatus.FAILED,
-            "message": UserMessage.VALIDATION_ERROR,
-            "uid": None,
-            "authorization": None,
-        },
         "info": {
             "errors": [
                 {
@@ -338,14 +412,17 @@ def test_schema_error_uses_standard_envelope() -> None:
     with make_client(AsyncMock()) as client:
         response = client.post(
             "/userController/login",
-            json={"body": {"auth": {}, "info": {}}},
+            json={"body": {"info": {}}},
         )
 
     assert response.status_code == 422
     body = response.json()["body"]
-    assert body["auth"]["status"] == AuthStatus.FAILED
-    assert body["auth"]["message"] == UserMessage.VALIDATION_ERROR
     assert body["info"]["errors"]
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.FAILED,
+        message=UserMessage.VALIDATION_ERROR,
+    )
 
 
 @pytest.mark.parametrize(
@@ -423,7 +500,6 @@ def test_application_error_mapping_uses_standard_envelope(
     service.login.side_effect = error
     payload = {
         "body": {
-            "auth": {},
             "info": {
                 "email": "user@example.com",
                 "password": PASSWORD,
@@ -436,16 +512,17 @@ def test_application_error_mapping_uses_standard_envelope(
         response = client.post("/userController/login", json=payload)
 
     assert response.status_code == status_code
-    assert "authorization" not in response.headers
+    assert_authorization_headers(
+        response,
+        status=auth_status,
+        message=message,
+    )
     assert response.json() == {
-        "header": {},
+        "header": {
+            "Status": auth_status,
+            "Message": message,
+        },
         "body": {
-            "auth": {
-                "status": auth_status,
-                "message": message,
-                "uid": None,
-                "authorization": None,
-            },
             "info": {},
         },
     }
@@ -458,7 +535,6 @@ def test_unexpected_error_maps_to_safe_500_response(
     service.login.side_effect = RuntimeError("sensitive internal detail")
     payload = {
         "body": {
-            "auth": {},
             "info": {
                 "email": "user@example.com",
                 "password": PASSWORD,
@@ -473,6 +549,8 @@ def test_unexpected_error_maps_to_safe_500_response(
     assert response.status_code == 500
     assert "sensitive internal detail" not in response.text
     assert "sensitive internal detail" not in caplog.text
-    assert response.json()["body"]["auth"]["message"] == (
-        UserMessage.INTERNAL_ERROR
+    assert_authorization_headers(
+        response,
+        status=AuthStatus.FAILED,
+        message=UserMessage.INTERNAL_ERROR,
     )
