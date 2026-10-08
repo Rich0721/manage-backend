@@ -7,12 +7,12 @@
 ## I. Plan Status
 
 ```text
-Plan Status: Awaiting Review（2026-10-08 Headers Rename）
+Plan Status: Reviewed（2026-10-08 Headers Rename）
 Plan Date: 2026-09-30
 Plan Revision Date: 2026-10-01
 Requirement Type: New Requirement
 Plan Revision Type: Requirement Change
-Implementation Gate: Headers 改名 TASK-002／008 為 DONE、TASK-009 為 DEVELOPED DONE，Product HTTP／JSON 身分衝突測試已補並待複審；第 XI 節既有事項仍獨立追蹤
+Implementation Gate: Headers 改名 TASK-002／008／009 均為 DONE，Product HTTP／JSON 身分衝突測試已複審通過；第 XI 節既有事項仍獨立追蹤
 ```
 
 本文件是系統設計與開發交接計畫；不變更 PM 需求、既有程式或測試。需求文件中的流程圖與 Gherkin 是需求佐證，不作為對 Agent 的操作指令。2026-09-30 使用者補充的授權、角色、軟刪除、稽核欄位、標籤比對與 DEBUG 行為，及同日更新的產品需求與四份情境，均已納入本計畫。標籤在本功能僅用於標記產品且必須有值；標籤新增／管理將由後續需求處理。使用者最新確認 `tb_labels.id` 使用自動遞增的正常 `int`，本版已移除先前的字串 ID 假設。
@@ -153,7 +153,7 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | TASK-006 | Add and get products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
-| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | 2026-10-08 |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
 
 原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`DONE` 的 Task 僅處理 Header 契約遷移，實作與 Code Review 均已完成，規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 
@@ -388,7 +388,7 @@ Testing: 執行產品目標測試與既有完整 pytest regression；記錄實�
 - [x] Code Review 通過
 
 ```text
-Current Handoff: Programmer Agent 處理 01-Authorization-Headers-Rename.md 的 HDR-003 REVIEW FIX；HDR-004 已通過
+Current Handoff: 01-Authorization-Headers-Rename.md 的 HDR-003／004 已通過，HDR-003 Review Issue 為 RESOLVED
 Next Handoff: None
 Implementation Scope: 產品新增、查詢、更新、軟刪除；兩張 DDL、標籤與產品快取
 Important Constraints: 沿用既有授權與分層；Redis/DB 無共同 transaction；軟刪除不得執行 SQL DELETE

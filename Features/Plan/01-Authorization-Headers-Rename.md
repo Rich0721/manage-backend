@@ -3,12 +3,12 @@
 ## I. Requirement Information
 
 ```text
-Plan Status: Awaiting Review
+Plan Status: Reviewed
 Plan Date: 2026-10-08
 Requirement Type: Requirement Change
 Requirement Source: 使用者 2026-10-08 指示及下列三份需求文件
 Requirement Summary: JSON 封套 header 改名 headers，授權仍由實際 HTTP headers 傳遞。
-Implementation Gate: HDR-001／004 Code Review 通過；HDR-002／003 已依 Review 補測並完成回歸，待複審。
+Implementation Gate: HDR-001～004 Code Review 通過；HDR-002／003 的 Review Issue 已解決。
 ```
 
 - `Features/Document/01-Authorization.md`：第 I 節 JSON 範例已將 `header` 改為 `headers`。
@@ -61,8 +61,8 @@ Implementation Gate: HDR-001／004 Code Review 通過；HDR-002／003 已依 Rev
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
 | HDR-001 | Authorization base envelope | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
-| HDR-002 | User envelope and shared response builder | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | 2026-10-08 |
-| HDR-003 | Product envelope and API regression | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | 2026-10-08 |
+| HDR-002 | User envelope and shared response builder | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
+| HDR-003 | Product envelope and API regression | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
 | HDR-004 | Global errors and OpenAPI regression | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
 
 原計畫索引對應同一工作，不重複實作；未列出的 Task 維持既有狀態：
@@ -205,7 +205,7 @@ HDR-001 → HDR-002 → HDR-003 → HDR-004；schema 與 builder 在同一交付
 - [x] 已記錄 API breaking change、舊 key 處理、DB／設定／外部 client 影響。
 - [x] Implementation Plan 已完成人工審核。
 - [x] 本次 Development 完成。
-- [ ] 本次 Code Review 通過。
+- [x] 本次 Code Review 通過。
 
 Open Question（部署事項）：外部 client 的遷移批次／上線時間未提供，不影響後端設計。計畫採直接改名；若需舊 key 過渡期，應另確認需求並更新本計畫，Programmer 不自行增加 alias。
 
@@ -214,5 +214,7 @@ Implementation Result：目標測試 89 passed；完整回歸 255 passed、7 ski
 Code Review Result（2026-10-08）：HDR-001／004 通過；HDR-002／003 的授權來源衝突測試不足，詳見 `Features/Review/01-Authorization-Headers-Rename/` 對應 Review。這是 Test Review Problem，未發現需改動 Production Code 或重新定義需求的問題。
 
 Handoff（2026-10-08）：HDR-002／003 已補足 User 與 Product 的 HTTP／JSON 身分衝突驗證。目標測試 89 passed；完整回歸 255 passed、7 skipped。兩項狀態更新為 DEVELOPED DONE，交 Code Review Agent 複審；HDR-001／004 維持 DONE。Review 記錄維持 OPEN，待 Code Reviewer 決議。
+
+複審結果（2026-10-08）：HDR-002／003 的衝突案例已驗證 service 只收到 HTTP 身分，Product 三條 body route 接受新版 JSON `headers`。相關 controller 測試 33 passed；兩份 Review 記錄更新為 RESOLVED，任務更新為 DONE。本次 Headers Rename 無待處理 Code Review Issue。
 
 歷史紀錄：2026-10-01 原 HDR-001～004 完成 HTTP 授權遷移，原計畫記錄 84 passed、完整回歸 250 passed／7 skipped；僅代表前次版本，不代表本次已測試。Features/Review/01-Authorization-Header-Change/ 亦屬前次審查。
