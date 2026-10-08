@@ -37,6 +37,21 @@ def test_product_request_rejects_body_auth() -> None:
         )
 
 
+def test_product_request_rejects_legacy_header_key() -> None:
+    with pytest.raises(ValidationError):
+        AddProductRequest(
+            header={},
+            body={
+                "info": {
+                    "name": "Product",
+                    "label_names": "label1",
+                    "cost": 100,
+                    "price": 150,
+                },
+            },
+        )
+
+
 @pytest.mark.parametrize("label_names", ["", " ", "one,,two", "one, "])
 def test_empty_label_name_segment_is_rejected(label_names: str) -> None:
     with pytest.raises(ValidationError):

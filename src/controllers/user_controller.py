@@ -130,7 +130,7 @@ def build_envelope(
         authorization=authorization,
     )
     return {
-        "header": headers,
+        "headers": headers,
         "body": {
             "info": serialized_info,
         },

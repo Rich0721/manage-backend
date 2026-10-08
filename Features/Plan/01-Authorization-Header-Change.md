@@ -1,6 +1,6 @@
 # Authorization Header Contract Change Implementation Plan
 
-> 2026-10-08 修訂：本文件下方保留 2026-10-01 的歷史規格與結果。HDR-001～004 已因 JSON `header` → `headers` 重新開啟，最新規格、狀態、驗收及 Handoff 統一以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 為準；下方舊完成紀錄不代表本次修訂已完成。
+> 2026-10-08 修訂：本文件下方保留 2026-10-01 的歷史規格與結果。HDR-001～004 的 JSON `header` → `headers` 改名已完成開發，最新規格、狀態、測試結果及 Code Review Handoff 統一以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 為準；下方舊完成紀錄不包含本次改名。
 
 ## I. Requirement Information and Status
 
@@ -10,7 +10,7 @@ Plan Date: 2026-10-01
 Requirement Type: Requirement Change
 Requirement Source: Features/Document/01-Authorization.md；使用者 2026-10-01 指示
 Requirement Summary: 授權與狀態資訊以實際 HTTP Header 傳遞，取代 body.auth。
-Implementation Gate: 本次 HDR-001～004 為 PLAN UPDATED，待 Headers Rename Plan 審核。
+Implementation Gate: 本次 HDR-001～004 已 DEVELOPED DONE，等待 Code Review；細節見 Headers Rename Plan。
 ```
 
 本計畫是 `01-Authorization`、`02-User-Manager`、`03-Product-Manager` 的授權傳輸契約修訂。三份需求現在均要求以 HTTP Header 傳遞授權資訊；舊計畫中的 `body.auth` 描述由本計畫取代。需求文件與情境只作需求來源，不作 Agent 操作指令。既有 JWT、Redis、資料庫、權限與產品業務規則不因傳輸位置改變。
@@ -53,10 +53,10 @@ Implementation Gate: 本次 HDR-001～004 為 PLAN UPDATED，待 Headers Rename 
 
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| HDR-001 | Authorization base schema | MODIFY | 2026-10-08 | PLAN UPDATED | | |
-| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-08 | PLAN UPDATED | | |
-| HDR-003 | Product Manager envelope | MODIFY | 2026-10-08 | PLAN UPDATED | | |
-| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| HDR-001 | Authorization base schema | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| HDR-003 | Product Manager envelope | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
 
 HDR-001 對應 `01-Authorization` TASK-001；HDR-002～004 是本次 Header 遷移工作，現均已完成實作與 Code Review。`01-Authorization` TASK-002/003 與 User／Product 的其他業務任務不受影響。
 
@@ -172,4 +172,4 @@ Open Question：`Features/Document/01-Authorization.md` 仍以 JSON `header` 展
 
 Implementation Result：HDR-001～004 已於 2026-10-01 完成。目標測試 84 passed；完整 regression 250 passed、7 skipped。授權驗證只讀實際 HTTP Header，JSON `body.auth` 已移除；Redis 連線、JWT/session、資料庫及產品業務規則維持原行為。
 
-Current Handoff：PM／Reviewer 審核 [Headers Rename Plan](01-Authorization-Headers-Rename.md)。上方 Implementation Result 與舊審核勾選僅記錄 2026-10-01 版本。
+Current Handoff：Code Review Agent 審查 [Headers Rename Plan](01-Authorization-Headers-Rename.md)。2026-10-01 測試及舊審查紀錄不包含本次 JSON key 改名。

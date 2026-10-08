@@ -21,5 +21,5 @@ class AuthorizationBody(BaseModel):
 
 
 class AuthorizationEnvelope(BaseModel):
-    header: dict[str, Any] = Field(default_factory=dict)
+    headers: dict[str, Any] = Field(default_factory=dict)
     body: AuthorizationBody = Field(default_factory=AuthorizationBody)

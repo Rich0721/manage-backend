@@ -26,7 +26,7 @@ class ProductBody(BaseModel, Generic[InfoT]):
 class ProductEnvelope(BaseModel, Generic[InfoT]):
     model_config = ConfigDict(extra="forbid")
 
-    header: dict[str, str] = Field(default_factory=dict)
+    headers: dict[str, str] = Field(default_factory=dict)
     body: ProductBody[InfoT]
 
 

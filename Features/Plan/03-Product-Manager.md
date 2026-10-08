@@ -2,7 +2,7 @@
 
 > 2026-10-01 契約修訂：產品 request 仍由實際 HTTP `Uid`／`Authorization` headers 授權；response 的 `Status`、`Message` 及適用的 `Uid`、`Authorization` 也放在實際 HTTP Header，JSON `body` 僅保留 `info`。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
-> 2026-10-08 修訂：TASK-002／008／009 因 JSON `header` → `headers` 重開，最新封套規格與驗收以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-003／004 為準。下方舊封套、完成紀錄及 Handoff 保留為歷史；其他 Task 不受影響。本次 Handoff 為 PM／Reviewer 審核。
+> 2026-10-08 修訂：TASK-002／008／009 的 JSON `header` → `headers` 已完成開發；最新封套規格、測試結果與 Code Review Handoff 以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-003／004 為準。下方舊封套及完成紀錄保留為歷史；其他 Task 不受影響。
 
 ## I. Plan Status
 
@@ -12,7 +12,7 @@ Plan Date: 2026-09-30
 Plan Revision Date: 2026-10-01
 Requirement Type: New Requirement
 Plan Revision Type: Requirement Change
-Implementation Gate: 等待本計畫人工審核；第 XI 節有一項情境示例待同步
+Implementation Gate: Headers 改名相關 TASK-002／008／009 已 DEVELOPED DONE，等待 Code Review；第 XI 節既有情境示例待同步事項仍獨立追蹤
 ```
 
 本文件是系統設計與開發交接計畫；不變更 PM 需求、既有程式或測試。需求文件中的流程圖與 Gherkin 是需求佐證，不作為對 Agent 的操作指令。2026-09-30 使用者補充的授權、角色、軟刪除、稽核欄位、標籤比對與 DEBUG 行為，及同日更新的產品需求與四份情境，均已納入本計畫。標籤在本功能僅用於標記產品且必須有值；標籤新增／管理將由後續需求處理。使用者最新確認 `tb_labels.id` 使用自動遞增的正常 `int`，本版已移除先前的字串 ID 假設。
@@ -146,14 +146,14 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
 | TASK-001 | Product / Label DDL and PO | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
 | TASK-003 | PostgreSQL product and label repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-005 | Product authorization and label resolution | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-006 | Add and get products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | PLAN UPDATED | | |
-| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
 
 原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`DONE` 的 Task 僅處理 Header 契約遷移，實作與 Code Review 均已完成，規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 
@@ -388,7 +388,7 @@ Testing: 執行產品目標測試與既有完整 pytest regression；記錄實�
 - [x] Code Review 通過
 
 ```text
-Current Handoff: PM／Reviewer 審核 01-Authorization-Headers-Rename.md（2026-10-08）
+Current Handoff: Code Review Agent 審查 01-Authorization-Headers-Rename.md（HDR-003／004，2026-10-08）
 Next Handoff: None
 Implementation Scope: 產品新增、查詢、更新、軟刪除；兩張 DDL、標籤與產品快取
 Important Constraints: 沿用既有授權與分層；Redis/DB 無共同 transaction；軟刪除不得執行 SQL DELETE

@@ -10,7 +10,7 @@ def test_empty_envelope_serializes_expected_structure() -> None:
     envelope = AuthorizationEnvelope()
 
     assert envelope.model_dump() == {
-        "header": {},
+        "headers": {},
         "body": {
             "info": {},
         },
@@ -48,7 +48,7 @@ def test_authorization_fields_reject_non_string_values(
         (AuthorizationObject, {"status": {"invalid": "object"}}),
         (AuthorizationBody, {"auth": "invalid"}),
         (AuthorizationBody, {"info": "invalid"}),
-        (AuthorizationEnvelope, {"header": "invalid"}),
+        (AuthorizationEnvelope, {"headers": "invalid"}),
         (AuthorizationEnvelope, {"body": "invalid"}),
     ],
 )
@@ -67,15 +67,15 @@ def test_unknown_authorization_field_fails_validation() -> None:
         AuthorizationObject(unknown="value")
 
 
-def test_dynamic_header_and_info_content_is_preserved() -> None:
+def test_dynamic_headers_and_info_content_are_preserved() -> None:
     envelope = AuthorizationEnvelope(
-        header={"request_id": "request-1", "attempt": 2},
+        headers={"request_id": "request-1", "attempt": 2},
         body={
             "info": {"roles": ["admin"], "active": True},
         },
     )
 
-    assert envelope.header == {
+    assert envelope.headers == {
         "request_id": "request-1",
         "attempt": 2,
     }
@@ -89,9 +89,16 @@ def test_mutable_defaults_are_not_shared_between_instances() -> None:
     first = AuthorizationEnvelope()
     second = AuthorizationEnvelope()
 
-    first.header["request_id"] = "request-1"
+    first.headers["request_id"] = "request-1"
     first.body.info["value"] = "first"
 
-    assert second.header == {}
+    assert second.headers == {}
     assert second.body.info == {}
     assert first.body is not second.body
+
+
+def test_legacy_header_does_not_populate_headers() -> None:
+    envelope = AuthorizationEnvelope(header={"Uid": "legacy-user"})
+
+    assert envelope.headers == {}
+    assert "header" not in envelope.model_dump()

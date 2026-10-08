@@ -86,7 +86,7 @@ def test_add_product_uses_headers_without_body_auth() -> None:
     auth = service.add.await_args.args[0]
     assert auth.uid == "header-user"
     assert auth.authorization == "Bearer request"
-    assert response.json()["header"] == {
+    assert response.json()["headers"] == {
         "Status": AuthStatus.SUCCESS,
         "Message": ProductMessage.SUCCESS,
         "Uid": "header-user",
@@ -117,10 +117,34 @@ def test_get_products_rejects_invalid_product_id_before_service() -> None:
 def test_add_product_does_not_use_json_header_as_authorization() -> None:
     service = AsyncMock()
     payload = {
-        "header": {
+        "headers": {
             "Uid": "json-user",
             "Authorization": "Bearer json-token",
         },
+        "body": {
+            "info": {
+                "name": "Product",
+                "label_names": "label1",
+                "cost": 100,
+                "price": 150,
+            },
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post(
+            "/productController/addProduct",
+            json=payload,
+        )
+
+    assert response.status_code == 422
+    service.add.assert_not_awaited()
+
+
+def test_add_product_rejects_legacy_json_header() -> None:
+    service = AsyncMock()
+    payload = {
+        "header": {},
         "body": {
             "info": {
                 "name": "Product",
@@ -204,6 +228,8 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
             assert unquote(response.headers["Message"]) == (
                 ProductMessage.SUCCESS
             )
+            assert "headers" in response.json()
+            assert "header" not in response.json()
             assert response.json()["body"]["info"][0]["id"] == (
                 "1790705105001"
             )
@@ -337,7 +363,7 @@ def test_product_routes_map_service_errors_to_standard_envelopes(
     assert unquote(response.headers["Message"]) == message
     assert response.headers.get("Uid") is None
     assert response.headers.get("Authorization") is None
-    assert response.json()["header"] == {
+    assert response.json()["headers"] == {
         "Status": auth_status,
         "Message": message,
     }

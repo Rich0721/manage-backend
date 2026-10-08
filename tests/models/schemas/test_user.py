@@ -21,7 +21,7 @@ PASSWORD = "A" * 64
 
 def test_register_schema_normalizes_email_and_serializes_aliases() -> None:
     request = RegisterRequest(
-        header={},
+        headers={},
         body={
             "info": {
                 "email": "User@Example.COM",
@@ -177,17 +177,34 @@ def test_response_models_serialize_public_aliases() -> None:
     }
 
 
-def test_envelope_mutable_header_is_not_shared() -> None:
+def test_envelope_mutable_headers_are_not_shared() -> None:
     first = UserEnvelope[LoginResponseInfo](
+        headers={},
         body={"info": {"userName": "First"}},
     )
     second = UserEnvelope[LoginResponseInfo](
+        headers={},
         body={"info": {"userName": "Second"}},
     )
 
-    first.header["request"] = "first"
+    first.headers["request"] = "first"
 
-    assert second.header == {}
+    assert second.headers == {}
+
+
+def test_user_envelope_rejects_legacy_header_key() -> None:
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            header={},
+            body={
+                "info": {
+                    "email": "user@example.com",
+                    "userName": "User",
+                    "password": PASSWORD,
+                    "confirmPassword": PASSWORD,
+                },
+            },
+        )
 
 
 def test_validation_error_item_matches_plan_target() -> None:

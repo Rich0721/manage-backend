@@ -79,6 +79,14 @@ def test_all_exact_routes_are_registered() -> None:
         redis_manager_factory=lambda settings: FakeManager(object()),
     )
     paths = application.openapi()["paths"]
+    schemas = application.openapi()["components"]["schemas"]
+
+    def resolve_schema(schema: dict[str, object]) -> dict[str, object]:
+        reference = schema.get("$ref")
+        if isinstance(reference, str):
+            schema_name = reference.rsplit("/", maxsplit=1)[-1]
+            return schemas[schema_name]
+        return schema
 
     assert "post" in paths["/userController/register"]
     assert "post" in paths["/userController/login"]
@@ -95,6 +103,9 @@ def test_all_exact_routes_are_registered() -> None:
         schema = operation["responses"]["200"]["content"][
             "application/json"
         ]["schema"]
+        response_schema = resolve_schema(schema)
+        assert "headers" in response_schema["properties"]
+        assert "header" not in response_schema["properties"]
         assert schema.get("additionalProperties") is not True
         assert set(operation["responses"]["200"]["headers"]) == {
             "Status",
@@ -105,6 +116,9 @@ def test_all_exact_routes_are_registered() -> None:
         validation_schema = operation["responses"]["422"]["content"][
             "application/json"
         ]["schema"]
+        validation_schema = resolve_schema(validation_schema)
+        assert "headers" in validation_schema["properties"]
+        assert "header" not in validation_schema["properties"]
         assert validation_schema.get("additionalProperties") is not True
         assert set(operation["responses"]["422"]["headers"]) == {
             "Status",
@@ -112,6 +126,15 @@ def test_all_exact_routes_are_registered() -> None:
             "Uid",
             "Authorization",
         }
+
+        request_body = operation.get("requestBody")
+        if request_body is not None:
+            request_schema = request_body["content"][
+                "application/json"
+            ]["schema"]
+            request_schema = resolve_schema(request_schema)
+            assert "headers" in request_schema["properties"]
+            assert "header" not in request_schema["properties"]
 
 
 def test_register_response_uses_status_headers_without_token() -> None:
@@ -122,7 +145,7 @@ def test_register_response_uses_status_headers_without_token() -> None:
         userName="User",
     )
     payload = {
-        "header": {},
+        "headers": {},
         "body": {
             "info": {
                 "email": "user@example.com",
@@ -143,7 +166,7 @@ def test_register_response_uses_status_headers_without_token() -> None:
         message=UserMessage.REGISTERED,
     )
     assert response.json() == {
-        "header": {
+        "headers": {
             "Status": AuthStatus.SUCCESS,
             "Message": UserMessage.REGISTERED,
         },
@@ -165,7 +188,7 @@ def test_login_returns_authorization_in_http_headers() -> None:
         info=LoginResponseInfo(userName="User"),
     )
     payload = {
-        "header": {},
+        "headers": {},
         "body": {
             "info": {
                 "email": "user@example.com",
@@ -186,7 +209,7 @@ def test_login_returns_authorization_in_http_headers() -> None:
         uid="uid",
         authorization="Bearer token",
     )
-    assert response.json()["header"] == {
+    assert response.json()["headers"] == {
         "Status": AuthStatus.SUCCESS,
         "Message": UserMessage.LOGGED_IN,
         "Uid": "uid",
@@ -219,7 +242,7 @@ def test_existing_session_maps_to_409_without_token() -> None:
         status=AuthStatus.FAILED,
         message=UserMessage.ALREADY_LOGGED_IN,
     )
-    assert response.json()["header"] == {
+    assert response.json()["headers"] == {
         "Status": AuthStatus.FAILED,
         "Message": UserMessage.ALREADY_LOGGED_IN,
     }
@@ -281,7 +304,7 @@ def test_get_users_does_not_use_json_header_as_authorization() -> None:
     service = AsyncMock()
     service.get_users.side_effect = AuthorizationRequiredError()
     payload = {
-        "header": {
+        "headers": {
             "Uid": "json-user",
             "Authorization": "Bearer json-token",
         },
@@ -297,6 +320,25 @@ def test_get_users_does_not_use_json_header_as_authorization() -> None:
     auth = service.get_users.await_args.args[0]
     assert auth.uid is None
     assert auth.authorization is None
+
+
+def test_get_users_rejects_legacy_json_header() -> None:
+    service = AsyncMock()
+    payload = {
+        "header": {
+            "Uid": "json-user",
+            "Authorization": "Bearer json-token",
+        },
+        "body": {
+            "info": {"userName": "Caller"},
+        },
+    }
+
+    with make_client(service) as client:
+        response = client.post("/userController/getUsers", json=payload)
+
+    assert response.status_code == 422
+    service.get_users.assert_not_awaited()
 
 
 def test_logout_does_not_return_authorization_header() -> None:
@@ -518,7 +560,7 @@ def test_application_error_mapping_uses_standard_envelope(
         message=message,
     )
     assert response.json() == {
-        "header": {
+        "headers": {
             "Status": auth_status,
             "Message": message,
         },

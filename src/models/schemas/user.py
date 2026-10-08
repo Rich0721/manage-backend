@@ -29,7 +29,7 @@ class UserBody(BaseModel, Generic[InfoT]):
 class UserEnvelope(BaseModel, Generic[InfoT]):
     model_config = ConfigDict(extra="forbid")
 
-    header: dict[str, Any] = Field(default_factory=dict)
+    headers: dict[str, Any] = Field(default_factory=dict)
     body: UserBody[InfoT]
 
 

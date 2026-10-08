@@ -2,7 +2,7 @@
 
 > 2026-10-01 契約修訂：`Features/Document/02-User-Manager.md` 現要求授權資訊放在實際 HTTP Header。protected request 以 HTTP `Uid`、`Authorization` 驗證；response 以 HTTP Header 傳遞狀態、訊息與適用的授權資訊。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-002、HDR-004 遷移。既有 JWT、Redis、權限與其他業務規則維持原計畫。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
-> 2026-10-08 修訂：TASK-001／010 因 JSON `header` → `headers` 重開，最新封套規格與驗收以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-002／004 為準。下方舊封套、完成紀錄及 Handoff 保留為歷史；其他 Task 不受影響。本次 Handoff 為 PM／Reviewer 審核。
+> 2026-10-08 修訂：TASK-001／010 的 JSON `header` → `headers` 已完成開發；最新封套規格、測試結果與 Code Review Handoff 以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-002／004 為準。下方舊封套及完成紀錄保留為歷史；其他 Task 不受影響。
 
 ## I. Plan Status
 
@@ -10,7 +10,7 @@
 Plan Status: Awaiting Review（2026-10-08 Headers Rename）
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-10-01
-Implementation Gate: 2026-10-08 Headers 改名待 `01-Authorization-Headers-Rename.md` 審核；既有完成紀錄保留
+Implementation Gate: Headers 改名相關 TASK-001／010 已 DEVELOPED DONE，等待 Code Review；其他任務依各自狀態處理
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -551,7 +551,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -560,7 +560,7 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
 2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更也已完成 TASK-001、TASK-010 實作與 Code Review。
@@ -1239,7 +1239,7 @@ Testing:
 - [x] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: PM／Reviewer 審核 01-Authorization-Headers-Rename.md（2026-10-08）
+Current Handoff: Code Review Agent 審查 01-Authorization-Headers-Rename.md（HDR-002／004，2026-10-08）
 Next Handoff: None
 Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;
