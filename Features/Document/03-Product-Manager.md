@@ -14,7 +14,7 @@ uri: /productController/addProduct
 
 ### 2-1-1. Request Authorization
 
-此物件需要透過`Header`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
+此物件需要透過`Headers`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
 
 ### 2-1-2. Request Body Information Object
 
@@ -28,7 +28,7 @@ uri: /productController/addProduct
 | price | number | 產品價格 |
 
 ### 2-1-3. Response Body Authorization 
-根據登入後資訊將使用者相關資訊透過`Header`中的`uid`和`Authorization`資訊返回。
+根據登入後資訊將使用者相關資訊透過`Headers`中的`uid`和`Authorization`資訊返回。
 需繼承自`authorization`物件，以利Response Body的結構化，根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ uri: /productController/addProduct
 3. Product的ID使用Unix Timestamp生成，並且取得當前時間的毫秒數作為唯一標識。
 4. 新增產品時，系統應自動記錄創建用戶和創建時間，更新產品時，系統應自動記錄更新用戶和更新時間。
 5. 當完成產品的新增或更新操作後，系統應更新Redis中的`products:info`，以確保緩存中的產品資訊與資料庫保持一致。
-6. 新增產品的更新者資訊應自動記錄在資料庫中，包括創建用戶、創建時間、更新用戶和更新時間，時間由程式自動生成，用戶則會從`Header`中的`uid`資訊中獲取。
+6. 新增產品的更新者資訊應自動記錄在資料庫中，包括創建用戶、創建時間、更新用戶和更新時間，時間由程式自動生成，用戶則會從`Headers`中的`uid`資訊中獲取。
 
 ### 2-1-7. Technical Requirements
 - `product:labels`沒有過期時間，但須要避免多人使用時出現資料不一致的情況，建議在更新Redis時使用分布式鎖。
@@ -79,7 +79,7 @@ uri: /productController/getProducts?productId={id}
 
 ### 2-2-1. Request Authorization
 
-此物件需要透過`Header`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
+此物件需要透過`Headers`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
 
 ### 2-2-2. Request Parameters
 
@@ -90,7 +90,7 @@ uri: /productController/getProducts?productId={id}
 | productId | string | 產品ID |
 
 ### 2-2-3. Response Authorization
-根據登入後資訊將使用者相關資訊透過`Header`中的`uid`和`Authorization`資訊返回。
+根據登入後資訊將使用者相關資訊透過`Headers`中的`uid`和`Authorization`資訊返回。
 需繼承自`authorization`物件，以利Response Body的結構化，根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
@@ -142,7 +142,7 @@ uri: /productController/updateProduct
 
 ### 2-3-1. Request Body Authorization
 
-此物件需要透過`Header`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
+此物件需要透過`Headers`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
 
 ### 2-3-2. Request Body Information Object
 
@@ -158,7 +158,7 @@ uri: /productController/updateProduct
 
 ### 2-3-3. Response Body Authorization
 
-根據登入後資訊將使用者相關資訊透過`Header`中的`uid`和`Authorization`資訊返回。
+根據登入後資訊將使用者相關資訊透過`Headers`中的`uid`和`Authorization`資訊返回。
 需繼承自`authorization`物件，以利Response Body的結構化，根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |
@@ -196,7 +196,7 @@ uri: /productController/updateProduct
 2. 更新產品時，若產品ID不存在，系統應返回錯誤訊息。
 3. 更新產品成功後，需同步更新Redis中的`products:info`。
 4. 若使用者沒有權限，系統返回`Unauthorized`訊息。
-5. DB的更新使用者須從`Header`中的`uid`資訊中獲取，更新時間由程式自動生成。
+5. DB的更新使用者須從`Headers`中的`uid`資訊中獲取，更新時間由程式自動生成。
 6. 更新產品時，`name`, `label_names`, `cost` 和 `price` 等欄位不得為空，否則更新失敗。
 
 ### 2-4. 刪除產品
@@ -207,7 +207,7 @@ uri: /productController/deleteProduct
 
 ### 2-4-1. Request Body Authorization
 
-此物件需要透過`Header`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
+此物件需要透過`Headers`中的`uid`和`Authorization`資訊確認API授權情況，並確保使用者具有訪問該資源的權限。
 
 ### 2-4-2. Request Body Information Object
 
@@ -219,7 +219,7 @@ uri: /productController/deleteProduct
 
 ### 2-4-3. Response Body Authorization
 
-根據登入後資訊將使用者相關資訊透過`Header`中的`uid`和`Authorization`資訊返回。
+根據登入後資訊將使用者相關資訊透過`Headers`中的`uid`和`Authorization`資訊返回。
 需繼承自`authorization`物件，以利Response Body的結構化，根據登入後獲得的`Authorization`資訊填寫，但如果辨別使用者沒有權限訪問該資源，則返回`Unauthorized`訊息。
 | Status | Message | 條件 |
 | --- | --- | --- |

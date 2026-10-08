@@ -2,10 +2,12 @@
 
 > 2026-10-01 契約修訂：授權與狀態資訊以實際 HTTP Header 傳遞，取代 `body.auth`；JSON `body` 僅保留 `info`。本文件原有封套設計是歷史紀錄；新的實作規格、影響範圍與測試以 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 為準。TASK-001 需重新實作；TASK-002/003 不受影響。
 
+> 2026-10-08 修訂：TASK-001 因 JSON `header` → `headers` 重開，最新封套規格與驗收以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-001 為準。下方舊封套及完成紀錄保留為歷史；TASK-002／003 不受影響。本次 Handoff 為 PM／Reviewer 審核。
+
 ## I. Plan Status
 
 ```text
-Plan Status: Complete
+Plan Status: Awaiting Review（2026-10-08 Headers Rename）
 Plan Date: 2026-09-17
 Plan Revision Date: 2026-10-01（Header 契約修訂另見 01-Authorization-Header-Change.md）
 ```
@@ -247,7 +249,7 @@ Responsibilities：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | Authorization Base Objects | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| TASK-001 | Authorization Base Objects | MODIFY | 2026-10-08 | PLAN UPDATED | | |
 | TASK-002 | Redis Settings and Dependencies | ADD | 2026-09-17 | DONE | 2026-09-18 | 2026-09-18 |
 | TASK-003 | Async Redis Connection | ADD | 2026-09-17 | DONE | 2026-09-18 | 2026-09-18 |
 
@@ -455,7 +457,7 @@ Testing:
 - [x] Code Review 通過
 
 ```text
-Current Handoff: None
+Current Handoff: PM／Reviewer 審核 01-Authorization-Headers-Rename.md（2026-10-08）
 Next Handoff: None
 Implementation Scope: Authorization base objects and async Redis connection only
 Do Not Implement: JWT, Redis token operations, authentication flow, feature integration

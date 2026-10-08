@@ -2,10 +2,12 @@
 
 > 2026-10-01 契約修訂：產品 request 仍由實際 HTTP `Uid`／`Authorization` headers 授權；response 的 `Status`、`Message` 及適用的 `Uid`、`Authorization` 也放在實際 HTTP Header，JSON `body` 僅保留 `info`。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
+> 2026-10-08 修訂：TASK-002／008／009 因 JSON `header` → `headers` 重開，最新封套規格與驗收以 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-003／004 為準。下方舊封套、完成紀錄及 Handoff 保留為歷史；其他 Task 不受影響。本次 Handoff 為 PM／Reviewer 審核。
+
 ## I. Plan Status
 
 ```text
-Plan Status: Complete
+Plan Status: Awaiting Review（2026-10-08 Headers Rename）
 Plan Date: 2026-09-30
 Plan Revision Date: 2026-10-01
 Requirement Type: New Requirement
@@ -144,14 +146,14 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
 | TASK-001 | Product / Label DDL and PO | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-08 | PLAN UPDATED | | |
 | TASK-003 | PostgreSQL product and label repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-005 | Product authorization and label resolution | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-006 | Add and get products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
-| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-01 | DONE | 2026-10-01 | 2026-10-01 |
+| TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | PLAN UPDATED | | |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-08 | PLAN UPDATED | | |
 
 原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`DONE` 的 Task 僅處理 Header 契約遷移，實作與 Code Review 均已完成，規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 
@@ -386,7 +388,7 @@ Testing: 執行產品目標測試與既有完整 pytest regression；記錄實�
 - [x] Code Review 通過
 
 ```text
-Current Handoff: None（TASK-004、TASK-009 Code Review 已通過）
+Current Handoff: PM／Reviewer 審核 01-Authorization-Headers-Rename.md（2026-10-08）
 Next Handoff: None
 Implementation Scope: 產品新增、查詢、更新、軟刪除；兩張 DDL、標籤與產品快取
 Important Constraints: 沿用既有授權與分層；Redis/DB 無共同 transaction；軟刪除不得執行 SQL DELETE
