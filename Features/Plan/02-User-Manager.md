@@ -10,7 +10,7 @@
 Plan Status: Awaiting Review（2026-10-08 Headers Rename）
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-10-01
-Implementation Gate: Headers 改名 TASK-001 為 DONE、TASK-010 為 REVIEW FIX，待補 User HTTP／JSON 身分衝突測試
+Implementation Gate: Headers 改名 TASK-001 為 DONE、TASK-010 為 DEVELOPED DONE，User HTTP／JSON 身分衝突測試已補並待複審
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -560,7 +560,7 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | REVIEW FIX | 2026-10-08 | 2026-10-08 |
+| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | 2026-10-08 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
 2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更也已完成 TASK-001、TASK-010 實作與 Code Review。

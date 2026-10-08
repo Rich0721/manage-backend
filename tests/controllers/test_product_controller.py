@@ -48,7 +48,7 @@ def make_client(service: AsyncMock) -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def test_add_product_uses_headers_without_body_auth() -> None:
+def test_add_product_uses_http_headers_when_json_headers_conflict() -> None:
     service = AsyncMock()
     service.add.return_value = ProtectedProductResult(
         context=AuthorizationContext("header-user", "Bearer renewed", False),
@@ -61,6 +61,10 @@ def test_add_product_uses_headers_without_body_auth() -> None:
         ),
     )
     payload = {
+        "headers": {
+            "Uid": "json-user",
+            "Authorization": "Bearer json-token",
+        },
         "body": {
             "info": {
                 "name": "Product",
@@ -197,6 +201,10 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
             "put",
             "/productController/updateProduct",
             {
+                "headers": {
+                    "Uid": "json-user",
+                    "Authorization": "Bearer json-token",
+                },
                 "body": {
                     "info": {
                         "id": "1790705105001",
@@ -211,7 +219,13 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
         (
             "delete",
             "/productController/deleteProduct",
-            {"body": {"info": {"id": "1790705105001"}}},
+            {
+                "headers": {
+                    "Uid": "json-user",
+                    "Authorization": "Bearer json-token",
+                },
+                "body": {"info": {"id": "1790705105001"}},
+            },
         ),
     ]
 
@@ -220,7 +234,7 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
             response = client.request(
                 method,
                 url,
-                headers={"uid": "header-user"},
+                headers={"uid": "header-user", "Authorization": "Bearer request"},
                 json=payload,
             )
             assert response.status_code == 200
@@ -233,6 +247,11 @@ def test_get_update_and_delete_routes_return_product_lists() -> None:
             assert response.json()["body"]["info"][0]["id"] == (
                 "1790705105001"
             )
+
+    for method_name in ("get", "update", "delete"):
+        auth = getattr(service, method_name).await_args.args[0]
+        assert auth.uid == "header-user"
+        assert auth.authorization == "Bearer request"
 
 
 @pytest.mark.parametrize(

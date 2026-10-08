@@ -248,7 +248,7 @@ def test_existing_session_maps_to_409_without_token() -> None:
     }
 
 
-def test_get_users_uses_request_headers_and_returns_renewed_token() -> None:
+def test_get_users_uses_http_headers_when_json_headers_conflict() -> None:
     service = AsyncMock()
     service.get_users.return_value = ProtectedResult(
         context=AuthorizationContext("uid", "Bearer token", False),
@@ -263,6 +263,10 @@ def test_get_users_uses_request_headers_and_returns_renewed_token() -> None:
         ),
     )
     payload = {
+        "headers": {
+            "Uid": "json-user",
+            "Authorization": "Bearer json-token",
+        },
         "body": {
             "info": {"userName": "Caller"},
         },
