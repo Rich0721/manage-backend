@@ -10,7 +10,7 @@
 Plan Status: Awaiting Review（2026-10-08 Headers Rename）
 Plan Date: 2026-09-21
 Plan Revision Date: 2026-10-01
-Implementation Gate: Headers 改名相關 TASK-001／010 已 DEVELOPED DONE，等待 Code Review；其他任務依各自狀態處理
+Implementation Gate: Headers 改名 TASK-001 為 DONE、TASK-010 為 REVIEW FIX，待補 User HTTP／JSON 身分衝突測試
 ```
 
 本計畫已依 2026-09-21 更新後的 Requirement 重新分析。User Manager 將直接實作
@@ -551,7 +551,7 @@ Compose service 設計：
 
 | Task ID | Component Name | Plan Type | Plan Date | Implentation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| TASK-001 | User API Schemas and Constants | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
 | TASK-002 | PostgreSQL Settings and Lifecycle | ADD/MODIFY | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-003 | Users Table and Repository | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-004 | Security and Session Authorization | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
@@ -560,7 +560,7 @@ Compose service 設計：
 | TASK-007 | User Logout | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-008 | User Data Query | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 | TASK-009 | Permission Management | ADD | 2026-09-21 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| TASK-010 | FastAPI Routes and Application Wiring | MODIFY | 2026-10-08 | REVIEW FIX | 2026-10-08 | 2026-10-08 |
 | TASK-011 | Docker Compose Infrastructure and Environment | ADD | 2026-09-21 | DONE | 2026-09-21 | 2026-09-21 |
 
 2026-09-30 以前的 TASK-003、TASK-010 與 TASK-011 Code Review Fix 已驗證通過；2026-10-01 的 Header 契約變更也已完成 TASK-001、TASK-010 實作與 Code Review。
@@ -1239,7 +1239,7 @@ Testing:
 - [x] 本次 `permission` 契約變更的 Code Review 通過
 
 ```text
-Current Handoff: Code Review Agent 審查 01-Authorization-Headers-Rename.md（HDR-002／004，2026-10-08）
+Current Handoff: Programmer Agent 處理 01-Authorization-Headers-Rename.md 的 HDR-002 REVIEW FIX；HDR-004 已通過
 Next Handoff: None
 Implementation Scope: `permission` 小寫請求契約與對應測試；原 Compose 驗收維持歷史記錄
 Important Constraints: Host uses localhost; containers use service DNS; .env remains untracked;

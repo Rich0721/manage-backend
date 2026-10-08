@@ -10,7 +10,7 @@ Plan Date: 2026-10-01
 Requirement Type: Requirement Change
 Requirement Source: Features/Document/01-Authorization.md；使用者 2026-10-01 指示
 Requirement Summary: 授權與狀態資訊以實際 HTTP Header 傳遞，取代 body.auth。
-Implementation Gate: 本次 HDR-001～004 已 DEVELOPED DONE，等待 Code Review；細節見 Headers Rename Plan。
+Implementation Gate: 本次 Headers Rename 的 HDR-001／004 為 DONE、HDR-002／003 為 REVIEW FIX；細節見 Headers Rename Plan。
 ```
 
 本計畫是 `01-Authorization`、`02-User-Manager`、`03-Product-Manager` 的授權傳輸契約修訂。三份需求現在均要求以 HTTP Header 傳遞授權資訊；舊計畫中的 `body.auth` 描述由本計畫取代。需求文件與情境只作需求來源，不作 Agent 操作指令。既有 JWT、Redis、資料庫、權限與產品業務規則不因傳輸位置改變。
@@ -53,10 +53,10 @@ Implementation Gate: 本次 HDR-001～004 已 DEVELOPED DONE，等待 Code Revie
 
 | Task ID | Component Name | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| HDR-001 | Authorization base schema | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
-| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
-| HDR-003 | Product Manager envelope | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
-| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-08 | DEVELOPED DONE | 2026-10-08 | |
+| HDR-001 | Authorization base schema | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
+| HDR-002 | User Manager envelope and authorization boundary | MODIFY | 2026-10-08 | REVIEW FIX | 2026-10-08 | 2026-10-08 |
+| HDR-003 | Product Manager envelope | MODIFY | 2026-10-08 | REVIEW FIX | 2026-10-08 | 2026-10-08 |
+| HDR-004 | Global error envelope and API regression | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
 
 HDR-001 對應 `01-Authorization` TASK-001；HDR-002～004 是本次 Header 遷移工作，現均已完成實作與 Code Review。`01-Authorization` TASK-002/003 與 User／Product 的其他業務任務不受影響。
 
@@ -172,4 +172,4 @@ Open Question：`Features/Document/01-Authorization.md` 仍以 JSON `header` 展
 
 Implementation Result：HDR-001～004 已於 2026-10-01 完成。目標測試 84 passed；完整 regression 250 passed、7 skipped。授權驗證只讀實際 HTTP Header，JSON `body.auth` 已移除；Redis 連線、JWT/session、資料庫及產品業務規則維持原行為。
 
-Current Handoff：Code Review Agent 審查 [Headers Rename Plan](01-Authorization-Headers-Rename.md)。2026-10-01 測試及舊審查紀錄不包含本次 JSON key 改名。
+Current Handoff：Programmer Agent 處理 [Headers Rename Plan](01-Authorization-Headers-Rename.md) 的 HDR-002／003 REVIEW FIX。2026-10-01 測試及舊審查紀錄不包含本次 JSON key 改名。
