@@ -26,6 +26,7 @@ uri: /productController/addProduct
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| stock | number | 產品庫存, default 0 |
 
 ### 2-1-3. Response Body Authorization 
 根據登入後資訊將使用者相關資訊透過`Headers`中的`uid`和`Authorization`資訊返回。
@@ -46,6 +47,7 @@ uri: /productController/addProduct
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| stock | number | 產品庫存, default 0 |
 
 ### 2-1-5. 使用者操作
 使用者在新增產品時，需要先登入系統，並且具有相應的權限。操作流程如下：
@@ -109,6 +111,7 @@ uri: /productController/getProducts?productId={id}
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| stock | number | 產品庫存 |
 | delete_flag | boolean | 刪除標誌, default false |
 | updated_user | string | 更新用戶 |
 | updated_at | datetime | 更新時間 |
@@ -155,6 +158,7 @@ uri: /productController/updateProduct
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| stock | number | 產品庫存, default 0 |
 
 ### 2-3-3. Response Body Authorization
 
@@ -177,6 +181,7 @@ uri: /productController/updateProduct
 | label_names  | string   | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost         | number   | 產品成本 |
 | price        | number   | 產品價格 |
+| stock        | number   | 產品庫存 |
 | delete_flag  | boolean  | 刪除標誌, default false |
 | updated_user | string   | 更新用戶 |
 | updated_at   | datetime | 更新時間 |
@@ -239,6 +244,7 @@ uri: /productController/deleteProduct
 | label_names | string | 產品標籤名稱列表, 多個標籤名稱以逗號分隔 |
 | cost | number | 產品成本 |
 | price | number | 產品價格 |
+| stock | number | 產品庫存 |
 | delete_flag | boolean | 刪除標誌, default false |
 | updated_user | string | 更新用戶 |
 | updated_at   | datetime | 更新時間 |
@@ -275,6 +281,7 @@ Table Name: tb_products
 | cost        | numeric(10,2)   | 產品成本    |
 | price       | numeric(10,2)   | 產品價格    |
 | delete_flag | boolean         | 刪除標誌, default false    |
+| stock       | number          | 產品庫存, default 0   |
 | created_uid | varchar(255)    | 創建用戶    |
 | created_at  | datetime        | 創建時間    |
 | updated_uid | varchar(255)    | 更新用戶    |

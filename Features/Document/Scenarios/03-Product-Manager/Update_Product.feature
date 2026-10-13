@@ -6,24 +6,24 @@ Feature: 更新產品
           And Header中的`uid`為"userA"
           And 使用者具有產品更新權限
           And "tb_products"中包含以下產品資訊
-            | id  | name  | label_names   | cost | price | delete_flag | updated_user | updated_at          |
-            | 1790705105001 | 產品A | 標籤1,標籤2   | 100  | 150   | false       | userB        | 2024-06-01 12:00:00 |
+            | id  | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | 1790705105001 | 產品A | 標籤1,標籤2   | 100  | 150   | 0     | false       | userB        | 2024-06-01 12:00:00 |
           And Redis中的`products:info`包含以下產品資訊
-            | id  | name  | label_names   | cost | price | delete_flag | updated_user | updated_at          |
-            | 1790705105001 | 產品A | 標籤1,標籤2   | 100  | 150   | false       | userB        | 2024-06-01 12:00:00 |
-            | 1790705105002 | 產品B | 標籤3         | 200  | 250   | false       | userB        | 2024-06-01 12:00:00 |
-            | 1790705105003 | 產品C | 標籤4         | 300  | 350   | true        | userC        | 2024-06-01 12:00:00 |
+            | id  | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | 1790705105001 | 產品A | 標籤1,標籤2   | 100  | 150   | 0     | false       | userB        | 2024-06-01 12:00:00 |
+            | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 0     | false       | userB        | 2024-06-01 12:00:00 |
+            | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 0     | true        | userC        | 2024-06-01 12:00:00 |
         When 使用者提交以下產品更新資訊
             | id  | name       | label_names   | cost | price |
             | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   |
         Then "tb_products"中的產品"1790705105001"應更新為以下資訊
-            | id  | name       | label_names   | cost | price | delete_flag | updated_user | updated_at          |
-            | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   | false       | userA        | 2024-06-03 12:00:00 |
+            | id  | name       | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   | 10     | false       | userA        | 2024-06-03 12:00:00 |
           And Redis中的`products:info`應同步為最新資訊
-          | id  | name       | label_names   | cost | price | delete_flag | updated_user | updated_at          |
-          | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   | false       | userA        | 2024-06-03 12:00:00 |
-          | 1790705105002 | 產品B | 標籤3         | 200  | 250   | false       | userB        | 2024-06-01 12:00:00 |
-          | 1790705105003 | 產品C | 標籤4         | 300  | 350   | true        | userC        | 2024-06-01 12:00:00 |
+          | id  | name       | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+          | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   | 10     | false       | userA        | 2024-06-03 12:00:00 |
+          | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 0     | false       | userB        | 2024-06-01 12:00:00 |
+          | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 0     | true        | userC        | 2024-06-01 12:00:00 |
           And 回傳Status為200
           And 回傳Message為"OK"
 
@@ -69,8 +69,8 @@ Feature: 更新產品
           And "tb_products"中存在產品ID"1790705105001"
           And Redis中的`products:info`包含產品ID"1790705105001"
         When 使用者提交以下產品更新資訊
-            | id  | name       | label_names   | cost | price |
-            | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   |
+            | id  | name       | label_names   | cost | price | stock |
+            | 1790705105001 | 產品A-更新 | 標籤1,標籤2   | 200  | 150   | 0     |
         Then "tb_products"中的產品"1790705105001"資訊不應更新
           And Redis中的`products:info`應保持不變
           And 回傳Status為401
