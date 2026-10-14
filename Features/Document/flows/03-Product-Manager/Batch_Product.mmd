@@ -1,0 +1,23 @@
+flowchart TD
+
+    %% Nodes
+    StartPoint(開始批次流程)
+    EndPoint(結束批次流程)
+    IsExcel{檢查是否為 Excel 檔案}
+    ReturnErrorMessage(回傳錯誤訊息)
+    CheckBatchMode{檢查批次使用模式}
+    CheckAddProductFormat{檢查新增產品格式}
+    CheckUpdateProductFormat{檢查更新產品格式}
+    ProcessBatch(處理批次資料)
+    
+    %% Flow
+    StartPoint --> IsExcel
+    IsExcel -- 是 --> CheckBatchMode
+    IsExcel -- 否 --> ReturnErrorMessage
+    CheckBatchMode -- 新增模式 --> CheckAddProductFormat
+    CheckBatchMode -- 更新模式 --> CheckUpdateProductFormat
+    CheckBatchMode -- 其他 --> EndPoint
+    CheckAddProductFormat --> ProcessBatch
+    CheckUpdateProductFormat --> ProcessBatch
+    ProcessBatch --> EndPoint
+    ReturnErrorMessage --> EndPoint
