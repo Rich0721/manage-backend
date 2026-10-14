@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from openpyxl import Workbook, load_workbook
 import pytest
+import xlrd
 
 from src.services.product_excel_service import ProductExcelError
 from src.services.product_excel_service import ProductExcelService
@@ -27,6 +28,149 @@ def make_workbook_bytes() -> bytes:
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()
+
+
+def make_biff_workbook_bytes(
+    *,
+    formula_in_name: bool = False,
+    error_in_cost: bool = False,
+) -> bytes:
+    def record(record_id: int, data: bytes) -> bytes:
+        return struct.pack("<HH", record_id, len(data)) + data
+
+    def bof(stream_type: int) -> bytes:
+        data = struct.pack(
+            "<HHHHII",
+            0x0600,
+            stream_type,
+            0x0DBB,
+            0x07CC,
+            0x00000041,
+            0x00000006,
+        )
+        return record(0x0809, data)
+
+    def label(row: int, column: int, value: str) -> bytes:
+        data = (
+            struct.pack("<HHHHB", row, column, 0, len(value), 1)
+            + value.encode("utf-16le")
+        )
+        return record(0x0204, data)
+
+    global_prefix = bof(0x0005) + record(0x0042, struct.pack("<H", 1200))
+    sheet_name = b"Add Product"
+    boundsheet_data = (
+        b"\0\0\0\0"
+        + b"\0\0"
+        + bytes([len(sheet_name), 0])
+        + sheet_name
+    )
+    boundsheet_record = record(0x0085, boundsheet_data)
+    sheet_offset = len(global_prefix) + len(boundsheet_record) + 4
+    boundsheet_data = (
+        struct.pack("<I", sheet_offset)
+        + b"\0\0"
+        + bytes([len(sheet_name), 0])
+        + sheet_name
+    )
+    workbook_globals = (
+        global_prefix
+        + record(0x0085, boundsheet_data)
+        + record(0x000A, b"")
+    )
+
+    sheet_records = [
+        bof(0x0010),
+        label(0, 0, "商品名稱"),
+        label(0, 1, "商品分類"),
+        label(0, 2, "成本"),
+        label(0, 3, "價錢"),
+        label(0, 4, "庫存"),
+    ]
+    if formula_in_name:
+        formula_data = (
+            struct.pack("<HHH", 1, 0, 0)
+            + struct.pack("<d", 2)
+            + b"\0" * 6
+            + struct.pack("<H", 0)
+        )
+        sheet_records.append(record(0x0006, formula_data))
+    else:
+        sheet_records.append(label(1, 0, "Legacy product"))
+    sheet_records.append(label(1, 1, "Legacy label"))
+    if error_in_cost:
+        sheet_records.append(
+            record(0x0205, struct.pack("<HHHBB", 1, 2, 0, 7, 1))
+        )
+    else:
+        sheet_records.append(record(0x0203, struct.pack("<HHHd", 1, 2, 0, 10)))
+    sheet_records.extend(
+        [
+            record(0x0203, struct.pack("<HHHd", 1, 3, 0, 20)),
+            record(0x0203, struct.pack("<HHHd", 1, 4, 0, 3)),
+            record(0x000A, b""),
+        ]
+    )
+    return workbook_globals + b"".join(sheet_records)
+
+
+def test_parse_reads_a_real_raw_biff_xls_workbook() -> None:
+    rows = ProductExcelService.parse(
+        "products.xls",
+        make_biff_workbook_bytes(),
+    )
+
+    assert len(rows) == 1
+    assert rows[0].name == "Legacy product"
+    assert rows[0].label_names == "Legacy label"
+    assert rows[0].cost == 10
+    assert rows[0].price == 20
+    assert rows[0].stock == 3
+
+
+def test_parse_rejects_formula_in_a_real_raw_biff_xls_workbook() -> None:
+    with pytest.raises(ProductExcelError) as error:
+        ProductExcelService.parse(
+            "products.xls",
+            make_biff_workbook_bytes(formula_in_name=True),
+        )
+
+    assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
+
+
+def test_parse_rejects_error_cell_in_a_real_raw_biff_xls_workbook() -> None:
+    with pytest.raises(ProductExcelError) as error:
+        ProductExcelService.parse(
+            "products.xls",
+            make_biff_workbook_bytes(error_in_cost=True),
+        )
+
+    assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
+
+
+def test_xls_formula_scanner_reads_legacy_book_stream() -> None:
+    biff_stream = make_biff_workbook_bytes(formula_in_name=True)
+
+    class FakeCompoundDocument(object):
+        def __init__(self, content: bytes, logfile: object) -> None:
+            return None
+
+        @staticmethod
+        def get_named_stream(name: str) -> bytes | None:
+            if name == "Book":
+                return biff_stream
+            return None
+
+    content = xlrd.compdoc.SIGNATURE + b"unused"
+    with patch(
+        "src.services.product_excel_service.xlrd.compdoc.CompDoc",
+        FakeCompoundDocument,
+    ):
+        formulas = ProductExcelService._ProductExcelService__xls_formula_cells(
+            content
+        )
+
+    assert formulas == {"Add Product": {(1, 0)}}
 
 
 def test_parse_xlsx_sheets_and_price_alias() -> None:
@@ -130,7 +274,10 @@ def test_parse_reads_legacy_xls_sheets() -> None:
             return_value=FakeCompoundDocument(),
         ),
     ):
-        rows = ProductExcelService.parse("products.xls", b"xls-bytes")
+        rows = ProductExcelService.parse(
+            "products.xls",
+            xlrd.compdoc.SIGNATURE + b"xls-bytes",
+        )
 
     assert rows[0].name == "Legacy"
     assert rows[0].stock == 2
@@ -202,7 +349,10 @@ def test_parse_rejects_formula_in_legacy_xls() -> None:
         ),
         pytest.raises(ProductExcelError) as error,
     ):
-        ProductExcelService.parse("products.xls", b"xls-bytes")
+        ProductExcelService.parse(
+            "products.xls",
+            xlrd.compdoc.SIGNATURE + b"xls-bytes",
+        )
 
     assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
 
@@ -254,7 +404,10 @@ def test_parse_rejects_error_cell_in_legacy_xls() -> None:
         ),
         pytest.raises(ProductExcelError) as error,
     ):
-        ProductExcelService.parse("products.xls", b"xls-bytes")
+        ProductExcelService.parse(
+            "products.xls",
+            xlrd.compdoc.SIGNATURE + b"xls-bytes",
+        )
 
     assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
 

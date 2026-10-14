@@ -171,10 +171,15 @@ class ProductExcelService(object):
 
     @staticmethod
     def __xls_formula_cells(content: bytes) -> dict[str, set[tuple[int, int]]]:
-        compound = xlrd.compdoc.CompDoc(content, logfile=StringIO())
-        stream = compound.get_named_stream("Workbook")
-        if stream is None:
-            raise ProductExcelError(ProductExcelService.INVALID_FILE_ERROR)
+        if content[:8] == xlrd.compdoc.SIGNATURE:
+            compound = xlrd.compdoc.CompDoc(content, logfile=StringIO())
+            stream = compound.get_named_stream("Workbook")
+            if stream is None:
+                stream = compound.get_named_stream("Book")
+            if stream is None:
+                raise ProductExcelError(ProductExcelService.INVALID_FILE_ERROR)
+        else:
+            stream = content
 
         sheet_offsets: list[tuple[int, str]] = []
         formula_offsets: list[tuple[int, int, int]] = []
