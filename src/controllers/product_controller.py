@@ -16,6 +16,7 @@ from src.models.schemas.product import DownloadProductRequest
 from src.models.schemas.product import DeleteProductRequest
 from src.models.schemas.product import ProductListResponse
 from src.models.schemas.product import UpdateProductRequest
+from src.services.product_errors import ProductBatchError
 
 
 router = APIRouter(prefix="/productController", tags=["Product Manager"])
@@ -165,9 +166,11 @@ async def batch_products(
     response: Response,
     uid: UidHeader,
     service: ProductServiceDependency,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
     authorization: AuthorizationHeader = None,
 ) -> dict[str, Any]:
+    if file is None:
+        raise ProductBatchError("檔案格式不正確，請上傳Excel檔案")
     result = await service.batch_products(
         header_auth(uid, authorization),
         file.filename or "",

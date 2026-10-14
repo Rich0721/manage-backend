@@ -10,6 +10,7 @@ from redis.exceptions import RedisError
 from src.models.po.product import Product
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
+from src.repositories.product_cache_repository import ProductCacheOutdatedError
 
 
 class FakeRedis(object):
@@ -106,6 +107,29 @@ async def test_empty_snapshot_differs_from_missing_key() -> None:
         await cache.replace_products([], {}, lease)
 
     assert await cache.get_products() == []
+
+
+@pytest.mark.asyncio
+async def test_old_snapshot_without_stock_is_marked_outdated() -> None:
+    client = FakeRedis()
+    cache = ProductCacheRepository(client)  # type: ignore[arg-type]
+    legacy_product = {
+        "id": "1790705105001",
+        "name": "Legacy product",
+        "label_ids": "1",
+        "label_names": ["Label"],
+        "cost": "10.00",
+        "price": "20.00",
+        "delete_flag": False,
+        "created_uid": "creator",
+        "created_at": "2026-01-01T00:00:00",
+        "updated_uid": "updater",
+        "updated_at": "2026-01-02T00:00:00",
+    }
+    client.values["products:info"] = json.dumps([legacy_product])
+
+    with pytest.raises(ProductCacheOutdatedError):
+        await cache.get_products()
 
 
 @pytest.mark.asyncio

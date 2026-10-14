@@ -16,6 +16,8 @@ from src.models.schemas.product import ProductDeleteInfo
 from src.models.schemas.product import ProductUpdateInfo
 from src.models.schemas.product import ProductDownloadInfo
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
+from src.repositories.product_repository import DuplicateProductRecordError
+from src.repositories.product_repository import ProductRepositoryError
 from src.services.authorization_service import AuthorizationContext
 from src.services.product_errors import ProductLabelNotFoundError
 from src.services.product_errors import ProductCacheUnavailableError
@@ -516,6 +518,89 @@ async def test_batch_add_creates_missing_label_and_preserves_stock() -> None:
     assert labels.values[0].name == "New label"
     assert result.info.root[0].stock == 3
     assert cache.products == products.values
+
+
+@pytest.mark.asyncio
+async def test_batch_insert_failure_returns_product_specific_message() -> None:
+    class DuplicateProducts(FakeProducts):
+        async def insert(
+            self,
+            product: Product,
+            connection: object,
+        ) -> Product:
+            raise DuplicateProductRecordError
+
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        DuplicateProducts(),  # type: ignore[arg-type]
+        FakeProductCache(),  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ProductBatchError) as error:
+        await service.batch_products(
+            AuthorizationObject(uid="operator"),
+            "products.xlsx",
+            make_batch_file(),
+        )
+
+    assert error.value.public_message == "新增Batch product失敗，請檢查Excel內容"
+
+
+@pytest.mark.asyncio
+async def test_batch_update_failure_returns_product_id_message() -> None:
+    product_id = "1790705105001"
+    original = Product(
+        id=product_id,
+        name="Existing product",
+        label_ids="1",
+        cost=Decimal("10.00"),
+        price=Decimal("20.00"),
+        stock=3,
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+        label_names=("Label1",),
+    )
+
+    class FailedUpdateProducts(FakeProducts):
+        def __init__(self) -> None:
+            super().__init__()
+            self.values.append(original)
+
+        async def update(self, product: Product, connection: object) -> bool:
+            raise ProductRepositoryError
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Update Product"
+    sheet.append(["商品ID", "商品名稱", "商品分類", "成本", "價錢", "庫存"])
+    sheet.append([product_id, "Changed", "Label1", 11, 21, 4])
+    output = BytesIO()
+    workbook.save(output)
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        FailedUpdateProducts(),  # type: ignore[arg-type]
+        FakeProductCache([original]),  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ProductBatchError) as error:
+        await service.batch_products(
+            AuthorizationObject(uid="operator"),
+            "products.xlsx",
+            output.getvalue(),
+        )
+
+    assert error.value.public_message == "修改1790705105001失敗，請檢查Excel內容"
 
 
 @pytest.mark.asyncio

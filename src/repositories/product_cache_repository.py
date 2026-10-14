@@ -19,6 +19,10 @@ class ProductCacheRepositoryError(Exception):
     pass
 
 
+class ProductCacheOutdatedError(ProductCacheRepositoryError):
+    """A valid snapshot from an older product schema needs a cold reload."""
+
+
 class ProductCacheLockLease(object):
     def __init__(
         self,
@@ -144,7 +148,11 @@ class ProductCacheRepository(object):
             return None
         try:
             values = json.loads(raw_products)
+            if any("stock" not in value for value in values):
+                raise ProductCacheOutdatedError
             return [self.__product_from_value(value) for value in values]
+        except ProductCacheOutdatedError:
+            raise
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise ProductCacheRepositoryError from error
 

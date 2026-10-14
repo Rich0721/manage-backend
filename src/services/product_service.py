@@ -24,7 +24,10 @@ from src.repositories.label_cache_repository import LabelCacheLockLease
 from src.repositories.label_repository import LabelRepository
 from src.repositories.label_repository import LabelRepositoryError
 from src.repositories.product_cache_repository import ProductCacheRepository
-from src.repositories.product_cache_repository import ProductCacheRepositoryError
+from src.repositories.product_cache_repository import (
+    ProductCacheRepositoryError,
+)
+from src.repositories.product_cache_repository import ProductCacheOutdatedError
 from src.repositories.product_cache_repository import ProductCacheLockLease
 from src.repositories.product_repository import DuplicateProductRecordError
 from src.repositories.product_repository import ProductRepository
@@ -200,15 +203,19 @@ class ProductService(object):
             raise ProductBatchError(error.public_message) from error
         try:
             written_products = await self.__write_batch(rows, context.uid)
-        except ProductCacheRepositoryError as error:
-            raise ProductCacheUnavailableError from error
-        except LabelCacheRepositoryError as error:
+        except (
+            ProductCacheRepositoryError,
+            LabelCacheRepositoryError,
+        ) as error:
             raise ProductCacheUnavailableError from error
         await self.__refresh_session(context)
         return ProtectedProductResult(
             context=context,
             info=ProductListResponseInfo(
-                [await self.__to_response(product) for product in written_products]
+                [
+                    await self.__to_response(product)
+                    for product in written_products
+                ]
             ),
         )
 
@@ -220,13 +227,17 @@ class ProductService(object):
         updated_ids: set[str] = set()
         created_ids: set[str] = set()
         written_products: list[Product] = []
+        active_row: ProductExcelRow | None = None
         committed = False
         published = False
         async with self.__product_cache.products_lock() as product_lease:
             await product_lease.ensure_held()
             async with self.__label_cache.lock() as label_lease:
                 await label_lease.ensure_held()
-                old_products = await self.__product_cache.get_products()
+                try:
+                    old_products = await self.__product_cache.get_products()
+                except ProductCacheOutdatedError:
+                    old_products = None
                 await self.__product_cache.invalidate_products(product_lease)
                 try:
                     async with self.__products.transaction() as connection:
@@ -235,6 +246,7 @@ class ProductService(object):
                         )
                         labels_by_name = self.__labels_by_name(labels)
                         for row in rows:
+                            active_row = row
                             product = await self.__batch_product(
                                 row,
                                 uid,
@@ -272,14 +284,16 @@ class ProductService(object):
                         old_products,
                         product_lease,
                     )
-                    raise ProductBatchError(
-                        ProductExcelService.ADD_DATA_ERROR
-                    ) from error
+                    message = (
+                        self.__batch_write_error_for(active_row)
+                        if active_row is not None
+                        else ProductExcelService.ADD_DATA_ERROR
+                    )
+                    raise ProductBatchError(message) from error
                 except (ProductRepositoryError, LabelRepositoryError) as error:
                     if committed:
                         await self.__invalidate_batch_caches(
                             product_lease,
-                            label_lease,
                         )
                     else:
                         await self.__restore_product_cache(
@@ -287,11 +301,13 @@ class ProductService(object):
                             product_lease,
                         )
                     raise ServiceUnavailableError from error
-                except ProductCacheRepositoryError as error:
+                except (
+                    ProductCacheRepositoryError,
+                    LabelCacheRepositoryError,
+                ) as error:
                     if committed:
                         await self.__invalidate_batch_caches(
                             product_lease,
-                            label_lease,
                         )
                     else:
                         await self.__restore_product_cache(
@@ -371,7 +387,9 @@ class ProductService(object):
                 try:
                     temp_path.unlink(missing_ok=True)
                 except OSError:
-                    LOGGER.exception("Failed to remove temporary product workbook")
+                    LOGGER.exception(
+                        "Failed to remove temporary product workbook"
+                    )
             raise ServiceUnavailableError from error
         await self.__refresh_session(context)
         return ProtectedFileResult(context, target_path.name, content)
@@ -403,17 +421,22 @@ class ProductService(object):
             label = labels_by_name.get(normalized_name)
             if label is None:
                 name = raw_name.strip()
-                label = await self.__labels.insert(
-                    Label(
-                        id=0,
-                        name=name,
-                        created_uid=uid,
-                        created_at=now,
-                        updated_uid=uid,
-                        updated_at=now,
-                    ),
-                    connection,  # type: ignore[arg-type]
-                )
+                try:
+                    label = await self.__labels.insert(
+                        Label(
+                            id=0,
+                            name=name,
+                            created_uid=uid,
+                            created_at=now,
+                            updated_uid=uid,
+                            updated_at=now,
+                        ),
+                        connection,  # type: ignore[arg-type]
+                    )
+                except LabelRepositoryError as error:
+                    raise ProductBatchError(
+                        self.__batch_write_error_for(row)
+                    ) from error
                 labels.append(label)
                 labels_by_name[normalized_name] = label
             product_label_names.append(label.name)
@@ -445,7 +468,13 @@ class ProductService(object):
                     connection,  # type: ignore[arg-type]
                 )
             except DuplicateProductRecordError as error:
-                raise ProductBatchError(self.__batch_error_for(row)) from error
+                raise ProductBatchError(
+                    self.__batch_write_error_for(row)
+                ) from error
+            except ProductRepositoryError as error:
+                raise ProductBatchError(
+                    self.__batch_write_error_for(row)
+                ) from error
             return product
 
         product_id = row.product_id or ""
@@ -472,10 +501,16 @@ class ProductService(object):
             updated_at=now,
             label_names=tuple(product_label_names),
         )
-        if not await self.__products.update(
-            product,
-            connection,  # type: ignore[arg-type]
-        ):
+        try:
+            updated = await self.__products.update(
+                product,
+                connection,  # type: ignore[arg-type]
+            )
+        except ProductRepositoryError as error:
+            raise ProductBatchError(
+                self.__batch_write_error_for(row)
+            ) from error
+        if not updated:
             raise ProductNotFoundError(f"{row.name} Not Found")
         return product
 
@@ -498,20 +533,25 @@ class ProductService(object):
     async def __invalidate_batch_caches(
         self,
         product_lease: ProductCacheLockLease,
-        label_lease: LabelCacheLockLease,
     ) -> None:
         try:
             await self.__product_cache.invalidate_products(product_lease)
         except ProductCacheRepositoryError:
-            LOGGER.exception("Failed to invalidate product cache after batch commit")
+            LOGGER.exception(
+                "Failed to invalidate product cache after batch commit"
+            )
         try:
-            await self.__label_cache.invalidate(label_lease)
+            await self.__label_cache.invalidate_after_commit()
         except LabelCacheRepositoryError:
-            LOGGER.exception("Failed to invalidate label cache after batch commit")
+            LOGGER.exception(
+                "Failed to invalidate label cache after batch commit"
+            )
         try:
             await self.__product_cache.invalidate_after_commit()
         except ProductCacheRepositoryError:
-            LOGGER.exception("Failed to fence product cache after batch commit")
+            LOGGER.exception(
+                "Failed to fence product cache after batch commit"
+            )
 
     @staticmethod
     def __labels_by_name(labels: list[Label]) -> dict[str, Label]:
@@ -531,6 +571,12 @@ class ProductService(object):
             if row.operation == "add"
             else ProductExcelService.UPDATE_DATA_ERROR
         )
+
+    @staticmethod
+    def __batch_write_error_for(row: ProductExcelRow) -> str:
+        if row.operation == "add":
+            return f"新增{row.name}失敗，請檢查Excel內容"
+        return f"修改{row.product_id}失敗，請檢查Excel內容"
 
     async def __next_product_id(
         self,
@@ -670,12 +716,19 @@ class ProductService(object):
 
     async def __get_all_products(self) -> list[Product]:
         try:
-            products = await self.__product_cache.get_products()
+            try:
+                products = await self.__product_cache.get_products()
+            except ProductCacheOutdatedError:
+                products = None
             if products is not None:
                 return products
             async with self.__product_cache.products_lock() as lease:
                 await lease.ensure_held()
-                products = await self.__product_cache.get_products()
+                try:
+                    products = await self.__product_cache.get_products()
+                except ProductCacheOutdatedError:
+                    await self.__product_cache.invalidate_products(lease)
+                    products = None
                 if products is None:
                     await self.__replace_product_cache("cold-load", "load", lease)
                     products = await self.__product_cache.get_products()

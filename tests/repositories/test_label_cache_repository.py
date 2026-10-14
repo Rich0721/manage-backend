@@ -30,20 +30,33 @@ class FakeRedis(object):
         key_count: int,
         *arguments: object,
     ) -> int:
-        key = str(arguments[0])
-        token = str(arguments[key_count])
-        if self.values.get(key) != token:
-            return 0
-        if "redis.call('del', KEYS[2])" in script:
-            await self.delete(str(arguments[1]))
-            return 1
-        if "KEYS[2]" in script:
-            self.values[str(arguments[1])] = str(arguments[key_count + 1])
-            return 1
+        keys = [str(value) for value in arguments[:key_count]]
+        values = [str(value) for value in arguments[key_count:]]
         if "pexpire" in script:
+            return int(self.values.get(keys[0]) == values[0])
+        if "incr" in script and "ARGV" not in script:
+            self.values[keys[1]] = str(int(self.values.get(keys[1], "0")) + 1)
+            await self.delete(keys[0])
             return 1
-        await self.delete(key)
-        return 1
+        if self.values.get(keys[0]) != values[0]:
+            return 0
+        if "incr" in script:
+            self.values[keys[2]] = str(
+                int(self.values.get(keys[2], "0")) + 1
+            )
+            await self.delete(keys[1])
+            return int(self.values[keys[2]])
+        if "KEYS[3]" in script and "set" in script:
+            if self.values.get(keys[2], "0") != values[1]:
+                return 0
+            self.values[keys[1]] = values[2]
+            return 1
+        if "redis.call('del', KEYS[2])" in script:
+            await self.delete(keys[1])
+            return 1
+        if "return redis.call('del', KEYS[1])" in script:
+            return await self.delete(keys[0])
+        return 0
 
 
 @pytest.mark.asyncio
@@ -109,6 +122,21 @@ async def test_label_cache_cannot_invalidate_after_lease_loss() -> None:
             await cache.invalidate(lease)
 
     assert client.values["product:labels"] == "newer snapshot"
+
+
+@pytest.mark.asyncio
+async def test_commit_invalidation_fences_old_label_snapshot_writer() -> None:
+    client = FakeRedis()
+    cache = LabelCacheRepository(client)  # type: ignore[arg-type]
+    timestamp = datetime(2026, 1, 1)
+    label = Label(1, "Label", "user", timestamp, "user", timestamp)
+
+    async with cache.lock() as stale_lease:
+        await cache.invalidate_after_commit()
+        with pytest.raises(LabelCacheRepositoryError):
+            await cache.replace([label], stale_lease)
+
+    assert await cache.get() is None
 
 
 @pytest.mark.asyncio

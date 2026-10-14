@@ -415,6 +415,22 @@ def test_batch_products_accepts_multipart_upload() -> None:
     )
 
 
+def test_batch_products_missing_file_returns_bad_request() -> None:
+    service = AsyncMock()
+
+    with make_client(service) as client:
+        response = client.post(
+            "/productController/batchProducts",
+            headers={"uid": "header-user", "Authorization": "Bearer request"},
+        )
+
+    assert response.status_code == 400
+    assert unquote(response.headers["Message"]) == (
+        "檔案格式不正確，請上傳Excel檔案"
+    )
+    service.batch_products.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     ("path", "method", "filename"),
     [
