@@ -181,6 +181,10 @@ class ProductExcelService(object):
         else:
             stream = content
 
+        biff_version = 0x0600
+        if len(stream) >= 6 and struct.unpack_from("<H", stream)[0] == 0x0809:
+            biff_version = struct.unpack_from("<H", stream, 4)[0]
+
         sheet_offsets: list[tuple[int, str]] = []
         formula_offsets: list[tuple[int, int, int]] = []
         position = 0
@@ -195,12 +199,28 @@ class ProductExcelService(object):
             if record_end > len(stream):
                 raise ProductExcelError(ProductExcelService.INVALID_FILE_ERROR)
             data = stream[record_start:record_end]
-            if record_id == xlrd.sheet.XL_BOUNDSHEET and len(data) >= 8:
+            if record_id == xlrd.sheet.XL_BOUNDSHEET and len(data) >= 7:
                 sheet_offset = struct.unpack_from("<I", data)[0]
                 name_length = data[6]
-                unicode_name = bool(data[7] & 1)
-                name_width = 2 if unicode_name else 1
-                name_data = data[8 : 8 + name_length * name_width]
+                if biff_version < 0x0600:
+                    name_start = 7
+                    name_width = 1
+                    unicode_name = False
+                else:
+                    if len(data) < 8:
+                        raise ProductExcelError(
+                            ProductExcelService.INVALID_FILE_ERROR
+                        )
+                    name_start = 8
+                    name_width = 2 if data[7] & 1 else 1
+                    unicode_name = bool(data[7] & 1)
+                name_data = data[
+                    name_start : name_start + name_length * name_width
+                ]
+                if len(name_data) != name_length * name_width:
+                    raise ProductExcelError(
+                        ProductExcelService.INVALID_FILE_ERROR
+                    )
                 name = name_data.decode(
                     "utf-16le" if unicode_name else "latin1",
                     errors="replace",

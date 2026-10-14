@@ -34,6 +34,7 @@ def make_biff_workbook_bytes(
     *,
     formula_in_name: bool = False,
     error_in_cost: bool = False,
+    biff_version: int = 0x0600,
 ) -> bytes:
     def record(record_id: int, data: bytes) -> bytes:
         return struct.pack("<HH", record_id, len(data)) + data
@@ -41,7 +42,7 @@ def make_biff_workbook_bytes(
     def bof(stream_type: int) -> bytes:
         data = struct.pack(
             "<HHHHII",
-            0x0600,
+            biff_version,
             stream_type,
             0x0DBB,
             0x07CC,
@@ -51,31 +52,37 @@ def make_biff_workbook_bytes(
         return record(0x0809, data)
 
     def label(row: int, column: int, value: str) -> bytes:
-        data = (
-            struct.pack("<HHHHB", row, column, 0, len(value), 1)
-            + value.encode("utf-16le")
-        )
+        if biff_version < 0x0600:
+            encoded_value = value.encode("cp950")
+            data = (
+                struct.pack("<HHHH", row, column, 0, len(encoded_value))
+                + encoded_value
+            )
+        else:
+            data = (
+                struct.pack("<HHHHB", row, column, 0, len(value), 1)
+                + value.encode("utf-16le")
+            )
         return record(0x0204, data)
 
-    global_prefix = bof(0x0005) + record(0x0042, struct.pack("<H", 1200))
+    codepage = 950 if biff_version < 0x0600 else 1200
+    global_prefix = bof(0x0005) + record(
+        0x0042,
+        struct.pack("<H", codepage),
+    )
     sheet_name = b"Add Product"
-    boundsheet_data = (
-        b"\0\0\0\0"
-        + b"\0\0"
-        + bytes([len(sheet_name), 0])
-        + sheet_name
-    )
-    boundsheet_record = record(0x0085, boundsheet_data)
+
+    def boundsheet_data(offset: int) -> bytes:
+        data = struct.pack("<I", offset) + b"\0\0" + bytes([len(sheet_name)])
+        if biff_version >= 0x0600:
+            data += b"\0"
+        return data + sheet_name
+
+    boundsheet_record = record(0x0085, boundsheet_data(0))
     sheet_offset = len(global_prefix) + len(boundsheet_record) + 4
-    boundsheet_data = (
-        struct.pack("<I", sheet_offset)
-        + b"\0\0"
-        + bytes([len(sheet_name), 0])
-        + sheet_name
-    )
     workbook_globals = (
         global_prefix
-        + record(0x0085, boundsheet_data)
+        + record(0x0085, boundsheet_data(sheet_offset))
         + record(0x000A, b"")
     )
 
@@ -128,11 +135,38 @@ def test_parse_reads_a_real_raw_biff_xls_workbook() -> None:
     assert rows[0].stock == 3
 
 
+def test_parse_reads_a_real_biff5_xls_workbook() -> None:
+    rows = ProductExcelService.parse(
+        "products.xls",
+        make_biff_workbook_bytes(biff_version=0x0500),
+    )
+
+    assert len(rows) == 1
+    assert rows[0].name == "Legacy product"
+    assert rows[0].label_names == "Legacy label"
+    assert rows[0].cost == 10
+    assert rows[0].price == 20
+    assert rows[0].stock == 3
+
+
 def test_parse_rejects_formula_in_a_real_raw_biff_xls_workbook() -> None:
     with pytest.raises(ProductExcelError) as error:
         ProductExcelService.parse(
             "products.xls",
             make_biff_workbook_bytes(formula_in_name=True),
+        )
+
+    assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
+
+
+def test_parse_rejects_formula_in_a_real_biff5_xls_workbook() -> None:
+    with pytest.raises(ProductExcelError) as error:
+        ProductExcelService.parse(
+            "products.xls",
+            make_biff_workbook_bytes(
+                formula_in_name=True,
+                biff_version=0x0500,
+            ),
         )
 
     assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
@@ -148,8 +182,24 @@ def test_parse_rejects_error_cell_in_a_real_raw_biff_xls_workbook() -> None:
     assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
 
 
+def test_parse_rejects_error_cell_in_a_real_biff5_xls_workbook() -> None:
+    with pytest.raises(ProductExcelError) as error:
+        ProductExcelService.parse(
+            "products.xls",
+            make_biff_workbook_bytes(
+                error_in_cost=True,
+                biff_version=0x0500,
+            ),
+        )
+
+    assert error.value.public_message == ProductExcelService.ADD_DATA_ERROR
+
+
 def test_xls_formula_scanner_reads_legacy_book_stream() -> None:
-    biff_stream = make_biff_workbook_bytes(formula_in_name=True)
+    biff_stream = make_biff_workbook_bytes(
+        formula_in_name=True,
+        biff_version=0x0500,
+    )
 
     class FakeCompoundDocument(object):
         def __init__(self, content: bytes, logfile: object) -> None:

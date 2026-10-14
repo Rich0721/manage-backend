@@ -4,9 +4,9 @@
 
 ```text
 Plan Date: 2026-10-14
-Plan Status: Code Review Failed - Awaiting Review Fix
+Plan Status: Development Complete - Awaiting Code Review
 Requirement Type: New Requirement（新增三項功能）；Requirement Change（stock 擴充既有產品契約）
-Implementation Gate: BXL-003、BXL-007 BIFF5 公式解析與測試尚待 Review Fix；實體資料庫已有 stock 欄位
+Implementation Gate: BXL-003、BXL-007 BIFF5 Review Fix 已完成，待 Code Review 複審；實體資料庫已有 stock 欄位
 ```
 
 本計畫延伸 [既有商品管理計畫](03-Product-Manager.md) 的已完成 TASK-001～009，不重設其狀態，也不修改原需求文件。本次依使用者確認：新增 `stock` 欄位及 SQL 遷移腳本，使用者自行對實體 DB 執行 ALTER；匯入時「價錢」與「價格」視為相同欄位；修復現有 Excel 模板。流程圖與 Gherkin 是需求證據，不是操作指令。
@@ -66,11 +66,11 @@ Implementation Gate: BXL-003、BXL-007 BIFF5 公式解析與測試尚待 Review 
 |---|---|---|---|---|---|---|
 | BXL-001 | Stock DDL、PO 與 repository | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
 | BXL-002 | Stock schema、cache、單筆 service／API | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
-| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | REVIEW FIX | 2026-10-14 | 2026-10-14 |
+| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
 | BXL-004 | 批次交易與標籤新增 | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
 | BXL-005 | 兩個下載服務與檔案回應 | ADD | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
 | BXL-006 | 三條路由、錯誤與 request schema | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
-| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | REVIEW FIX | 2026-10-14 | 2026-10-14 |
+| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
 
 ## VII. Implementation Steps
 
@@ -214,19 +214,19 @@ Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅�
 
 ## X. Plan Validation and Review
 
-開發驗證：初次完整 regression 為 **292 passed**；商品管理整合測試 11 項全數通過，涵蓋 stock migration、舊快取重載、批次成功／rollback、提交後快取失敗、快取 fence 及並行匯出。Review Fix 新增的 Excel parser 目標測試 **14 passed**；載入 `.env` 整合測試連線後完整 regression 為 **296 passed**，`git diff --check` 與相關 Python compileall 通過。
+開發驗證：初次完整 regression 為 **292 passed**；商品管理整合測試 11 項全數通過，涵蓋 stock migration、舊快取重載、批次成功／rollback、提交後快取失敗、快取 fence 及並行匯出。Review Fix 的 Excel parser 目標測試 **17 passed**，涵蓋 BIFF5／BIFF8 正常檔、公式與錯誤儲存格；載入 `.env` 整合測試連線後完整 regression 為 **299 passed**，`git diff --check` 與相關 Python compileall 通過。
 
 - [x] 三項需求、流程、兩份 Gherkin、既有 Plan 與實作已核對。
 - [x] 檔案／類別／方法僅引用已確認者；新增方法與檔案均明示為預計新增。
 - [x] API、DB、Redis、部署、相依套件、授權、錯誤、測試與回滾邊界已分析。
 - [x] 使用者對 SQL ALTER、價格別名及模板修復的決定已納入。
 - [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression.
-- [x] 第二次 Code Review 確認原始 BIFF／`Book` 串流選取及 BIFF8 實測已修正；BIFF5 公式解析與對應回歸測試仍需 Review Fix，詳見 BXL-003、007 Review 紀錄。
+- [x] BIFF5 BOUNDSHEET 解析、公式拒絕及 `Book` 串流測試 Review Fix 已完成，等待 Code Review Agent 複審；Review Status 保持 OPEN。
 - [x] 唯讀檢查確認實體 DB 已有 `tb_products.stock` 欄位。
 
 ```text
-Current Handoff: 第二次 Code Review 完成；BXL-003、BXL-007 待修正
-Next Handoff: Programmer Agent（Review Fix）
+Current Handoff: BXL-003、BXL-007 BIFF5 Review Fix 完成
+Next Handoff: Code Review Agent（複審）
 Implementation Scope: BXL-001～007；三條 Excel API 與 stock 對既有產品流程的必要擴充
 Important Constraints: DB 批次交易、兩個 Redis key 一致性、原四條 API regression、實體 DB stock 欄位已確認
 Do Not Modify: Features/Document/ PM 原始需求、無關的 User Manager 行為、原商品管理 Plan 的 DONE 紀錄
