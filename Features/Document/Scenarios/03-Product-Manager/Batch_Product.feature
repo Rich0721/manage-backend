@@ -13,7 +13,7 @@ Feature: 批次處理產品
            | id | name   |
            | 1  | label1 |
            | 2  | label2 |
-          And Redis 中的 "product:info" 包含以下產品
+          And Redis 中的 "products:info" 包含以下產品
            | id            | name         | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
            | 1710000000123 | test product | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-01 12:00:00 |
           And 使用者提供的檔案放在"Add Product"分頁中且包含以下內容
@@ -36,7 +36,7 @@ Feature: 批次處理產品
            | 1710000000124 | test product 2 | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
            | 1710000000125 | test product 3 | 3         | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
            | 1710000000126 | test product 4 | 2         | 100  | 160   | 2     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
-         And Redis的"product:labels"和"product:info"應更新最新資訊
+         And Redis的"product:labels"和"products:info"應更新最新資訊
          And 回傳200的狀態
     
     Scenario: 批次更新產品
@@ -57,7 +57,7 @@ Feature: 批次處理產品
            | 1  | label1 |
            | 2  | label2 |
            | 3  | label3 |
-          And Redis 中的 "product:info" 包含以下產品
+          And Redis 中的 "products:info" 包含以下產品
             | id            | name           | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
             | 1710000000123 | test product   | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
             | 1710000000124 | test product 2 | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
@@ -84,7 +84,7 @@ Feature: 批次處理產品
             | 1710000000124 | test product 2 | 1,2       | 100  | 150   | 7     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-03 12:00:00 |
             | 1710000000125 | test product 3 | 3         | 100  | 150   | 5     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-01 12:00:00 |
             | 1710000000126 | test product 4 | 4         | 100  | 160   | 2     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-03 12:00:00 |
-          And Redis的"product:labels"和"product:info"應更新最新資訊
+          And Redis的"product:labels"和"products:info"應更新最新資訊
           And 回傳200的狀態
     
     Scenario: 批次新增產品失敗 - Excel內容不符合規範
@@ -100,7 +100,7 @@ Feature: 批次處理產品
            | id | name   |
            | 1  | label1 |
            | 2  | label2 |
-          And Redis 中的 "product:info" 包含以下產品
+          And Redis 中的 "products:info" 包含以下產品
            | id            | name         | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
            | 1710000000123 | test product | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-01 12:00:00 |
           And 使用者提供的檔案放在"Add Product"分頁中且包含以下內容
@@ -120,7 +120,7 @@ Feature: 批次處理產品
            | id | name   |
            | 1  | label1 |
            | 2  | label2 |
-         And Redis 中的"product:labels"和"product:info"應維持原本資料
+         And Redis 中的"product:labels"和"products:info"應維持原本資料
     
     Scenario: 批次更新產品失敗 - Excel檔案格式錯誤
         Given 使用者已登入
@@ -140,7 +140,7 @@ Feature: 批次處理產品
            | 1  | label1 |
            | 2  | label2 |
            | 3  | label3 |
-          And Redis 中的 "product:info" 包含以下產品
+          And Redis 中的 "products:info" 包含以下產品
             | id            | name           | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
             | 1710000000123 | test product   | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
             | 1710000000124 | test product 2 | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-02 12:00:00 | user-001    | 2024-04-02 12:00:00 |
@@ -164,4 +164,4 @@ Feature: 批次處理產品
             | 1  | label1 |
             | 2  | label2 |
             | 3  | label3 |
-          And Redis 的 "product:labels" 和 "product:info" 應維持原本資料
+          And Redis 的 "product:labels" 和 "products:info" 應維持原本資料

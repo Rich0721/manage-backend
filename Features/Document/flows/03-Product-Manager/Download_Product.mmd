@@ -1,0 +1,19 @@
+flowchart TD
+
+    %% Nodes
+    StartPoint(開始下載商品資料Excel)
+    EndPoint(結束下載商品資料Excel)
+    CheckAuthorization{檢查使用者授權}
+    SplitJson(切割商品ID)
+    CheckRedisKey{檢查Redis中是否存在商品資料}
+    SelectFromRedis(從Redis中查詢商品資料)
+    SelectFromDB(從資料庫中查詢商品資料)
+    UpdateRedis(更新Redis中的商品資料)
+    DownloadTemplate(下載商品資料Excel檔案)
+    ReturnError(返回錯誤訊息)
+
+    %% Connections
+    StartPoint --> CheckAuthorization -- 確認授權 --> SplitJson --> CheckRedisKey -- 存在 --> SelectFromRedis --> DownloadTemplate 
+    CheckRedisKey -- 不存在 --> SelectFromDB --> UpdateRedis --> DownloadTemplate
+    DownloadTemplate --> EndPoint
+    CheckAuthorization -- 授權失敗 --> ReturnError --> EndPoint

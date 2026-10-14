@@ -369,8 +369,8 @@ uri: /productController/downloadTemplate
 
 ### 2-7. 下載商品資料成Excel
 
-Flow Chart: 
-Gherkin: 
+Flow Chart: [下載商品](./flows/03-Product-Manager/Download_Product.mmd)
+Gherkin: [下載商品](./scenarios/03-Product-Manager/Download_Product.feature)
 METHOD: POST
 uri: /productController/downloadProductData
 
