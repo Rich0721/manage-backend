@@ -339,8 +339,7 @@ uri: /productController/batchProducts
 
 
 ### 2-6. 下載Excel模板
-Flow Chart: 
-Gherkin: 
+Flow Chart: [下載Excel模板流程圖](./flows/03-Product-Manager/Download_Template.mmd)
 METHOD: GET
 uri: /productController/downloadTemplate
 

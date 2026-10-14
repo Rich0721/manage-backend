@@ -1,0 +1,10 @@
+flowchart TD
+    %% Nodes
+    StartPoint(開始下載Excel模板)
+    EndPoint(結束下載Excel模板)
+    CheckAuthorization{檢查使用者授權}
+    DownloadTemplate(下載Excel模板)
+    ReturnError(返回錯誤訊息)
+    %% Connections
+    StartPoint --> CheckAuthorization -- 確認授權 --> DownloadTemplate --> EndPoint
+    CheckAuthorization -- 授權失敗 --> ReturnError --> EndPoint
