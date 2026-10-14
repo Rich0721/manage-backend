@@ -15,6 +15,7 @@ from pydantic import (
 InfoT = TypeVar("InfoT")
 ProductId = Annotated[str, StringConstraints(pattern=r"^\d{13}$")]
 Money = Annotated[Decimal, Field(max_digits=10, decimal_places=2)]
+Stock = Annotated[int, Field(ge=0)]
 
 
 class ProductBody(BaseModel, Generic[InfoT]):
@@ -48,11 +49,12 @@ class ProductWriteInfo(BaseModel):
 
 
 class ProductCreateInfo(ProductWriteInfo):
-    pass
+    stock: Stock = 0
 
 
 class ProductUpdateInfo(ProductWriteInfo):
     id: ProductId
+    stock: Stock | None = None
 
 
 class ProductDeleteInfo(BaseModel):
@@ -67,6 +69,7 @@ class ProductCreateResponseInfo(BaseModel):
     label_names: str
     cost: Decimal
     price: Decimal
+    stock: int = 0
     @field_serializer("cost", "price", when_used="json")
     def serialize_money(self, value: Decimal) -> float:
         return float(value)
@@ -87,3 +90,23 @@ UpdateProductRequest = ProductEnvelope[ProductUpdateInfo]
 DeleteProductRequest = ProductEnvelope[ProductDeleteInfo]
 AddProductResponse = ProductEnvelope[ProductCreateResponseInfo]
 ProductListResponse = ProductEnvelope[ProductListResponseInfo]
+
+
+class ProductDownloadInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ids: str = Field(min_length=1)
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, value: str) -> str:
+        product_ids = [product_id.strip() for product_id in value.split(",")]
+        if not product_ids or any(
+            len(product_id) != 13 or not product_id.isdigit()
+            for product_id in product_ids
+        ):
+            raise ValueError("ids must contain comma-separated 13-digit IDs")
+        return value
+
+
+DownloadProductRequest = ProductEnvelope[ProductDownloadInfo]

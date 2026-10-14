@@ -20,6 +20,7 @@ def test_product_request_validates_info_without_body_auth() -> None:
     )
 
     assert request.body.info.cost == Decimal("100.00")
+    assert request.body.info.stock == 0
 
 
 def test_product_request_rejects_body_auth() -> None:
@@ -77,3 +78,19 @@ def test_product_response_serializes_money_as_json_number() -> None:
     )
 
     assert response.model_dump(mode="json")["cost"] == 100.0
+    assert response.stock == 0
+
+
+def test_product_request_rejects_negative_stock() -> None:
+    with pytest.raises(ValidationError):
+        AddProductRequest(
+            body={
+                "info": {
+                    "name": "Product",
+                    "label_names": "label1",
+                    "cost": 100,
+                    "price": 150,
+                    "stock": -1,
+                },
+            },
+        )

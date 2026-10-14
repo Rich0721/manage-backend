@@ -1,5 +1,6 @@
 from typing import Any
 
+from psycopg import AsyncConnection
 from psycopg import Error as PsycopgError
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -31,6 +32,55 @@ class LabelRepository(object):
         except PsycopgError as error:
             raise LabelRepositoryError from error
         return [self.__to_label(row) for row in rows]
+
+    async def list_all_in_transaction(
+        self,
+        connection: AsyncConnection[Any],
+    ) -> list[Label]:
+        try:
+            async with connection.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    """
+                    SELECT id, name, created_uid, created_at,
+                           updated_uid, updated_at
+                      FROM tb_labels
+                     ORDER BY id
+                    """
+                )
+                rows = await cursor.fetchall()
+        except PsycopgError as error:
+            raise LabelRepositoryError from error
+        return [self.__to_label(row) for row in rows]
+
+    async def insert(
+        self,
+        label: Label,
+        connection: AsyncConnection[Any],
+    ) -> Label:
+        try:
+            async with connection.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    """
+                    INSERT INTO tb_labels (
+                        name, created_uid, created_at, updated_uid, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, name, created_uid, created_at,
+                              updated_uid, updated_at
+                    """,
+                    (
+                        label.name,
+                        label.created_uid,
+                        label.created_at,
+                        label.updated_uid,
+                        label.updated_at,
+                    ),
+                )
+                row = await cursor.fetchone()
+        except PsycopgError as error:
+            raise LabelRepositoryError from error
+        if row is None:
+            raise LabelRepositoryError
+        return self.__to_label(row)
 
     @staticmethod
     def __to_label(row: dict[str, Any]) -> Label:

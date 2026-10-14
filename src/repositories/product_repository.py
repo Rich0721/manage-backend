@@ -41,7 +41,8 @@ class ProductRepository(object):
                 async with connection.cursor(row_factory=dict_row) as cursor:
                     await cursor.execute(
                         """
-                        SELECT id, name, label_ids, cost, price, delete_flag,
+                        SELECT id, name, label_ids, cost, price, stock,
+                               delete_flag,
                                created_uid, created_at, updated_uid, updated_at
                           FROM tb_products
                          ORDER BY id
@@ -58,7 +59,8 @@ class ProductRepository(object):
                 async with connection.cursor(row_factory=dict_row) as cursor:
                     await cursor.execute(
                         """
-                        SELECT id, name, label_ids, cost, price, delete_flag,
+                        SELECT id, name, label_ids, cost, price, stock,
+                               delete_flag,
                                created_uid, created_at, updated_uid, updated_at
                           FROM tb_products
                          WHERE id = %s
@@ -66,6 +68,28 @@ class ProductRepository(object):
                         (product_id,),
                     )
                     row = await cursor.fetchone()
+        except PsycopgError as error:
+            raise ProductRepositoryError from error
+        return self.__to_product(row) if row is not None else None
+
+    async def get_by_id_in_transaction(
+        self,
+        product_id: str,
+        connection: AsyncConnection[Any],
+    ) -> Product | None:
+        try:
+            async with connection.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    """
+                    SELECT id, name, label_ids, cost, price, stock,
+                           delete_flag, created_uid, created_at,
+                           updated_uid, updated_at
+                      FROM tb_products
+                     WHERE id = %s
+                    """,
+                    (product_id,),
+                )
+                row = await cursor.fetchone()
         except PsycopgError as error:
             raise ProductRepositoryError from error
         return self.__to_product(row) if row is not None else None
@@ -79,9 +103,9 @@ class ProductRepository(object):
             await connection.execute(
                 """
                 INSERT INTO tb_products (
-                    id, name, label_ids, cost, price, delete_flag,
+                    id, name, label_ids, cost, price, stock, delete_flag,
                     created_uid, created_at, updated_uid, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     product.id,
@@ -89,6 +113,7 @@ class ProductRepository(object):
                     product.label_ids,
                     product.cost,
                     product.price,
+                    product.stock,
                     product.delete_flag,
                     product.created_uid,
                     product.created_at,
@@ -116,6 +141,7 @@ class ProductRepository(object):
                            label_ids = %s,
                            cost = %s,
                            price = %s,
+                           stock = %s,
                            updated_uid = %s,
                            updated_at = %s
                      WHERE id = %s
@@ -126,6 +152,7 @@ class ProductRepository(object):
                         product.label_ids,
                         product.cost,
                         product.price,
+                        product.stock,
                         product.updated_uid,
                         product.updated_at,
                         product.id,
@@ -167,6 +194,7 @@ class ProductRepository(object):
             label_ids=row["label_ids"],
             cost=row["cost"],
             price=row["price"],
+            stock=row["stock"],
             delete_flag=row["delete_flag"],
             created_uid=row["created_uid"],
             created_at=row["created_at"],

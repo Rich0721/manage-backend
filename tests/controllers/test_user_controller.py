@@ -100,13 +100,19 @@ def test_all_exact_routes_are_registered() -> None:
             or path.get("get")
             or path.get("delete")
         )
-        schema = operation["responses"]["200"]["content"][
-            "application/json"
-        ]["schema"]
-        response_schema = resolve_schema(schema)
-        assert "headers" in response_schema["properties"]
-        assert "header" not in response_schema["properties"]
-        assert schema.get("additionalProperties") is not True
+        success_content = operation["responses"]["200"]["content"]
+        if "application/json" in success_content:
+            schema = success_content["application/json"]["schema"]
+            response_schema = resolve_schema(schema)
+            assert "headers" in response_schema["properties"]
+            assert "header" not in response_schema["properties"]
+            assert schema.get("additionalProperties") is not True
+        else:
+            excel_schema = success_content[
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ]["schema"]
+            assert excel_schema == {"type": "string", "format": "binary"}
         assert set(operation["responses"]["200"]["headers"]) == {
             "Status",
             "Message",
@@ -129,9 +135,13 @@ def test_all_exact_routes_are_registered() -> None:
 
         request_body = operation.get("requestBody")
         if request_body is not None:
-            request_schema = request_body["content"][
-                "application/json"
-            ]["schema"]
+            content = request_body["content"]
+            if "multipart/form-data" in content:
+                request_schema = content["multipart/form-data"]["schema"]
+                request_schema = resolve_schema(request_schema)
+                assert "file" in request_schema["properties"]
+                continue
+            request_schema = content["application/json"]["schema"]
             request_schema = resolve_schema(request_schema)
             assert "headers" in request_schema["properties"]
             assert "header" not in request_schema["properties"]

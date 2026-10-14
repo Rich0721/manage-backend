@@ -74,6 +74,7 @@ async def test_products_cache_round_trips_soft_deleted_product() -> None:
         label_ids="1,2",
         cost=Decimal("100.00"),
         price=Decimal("150.00"),
+        stock=17,
         delete_flag=True,
         created_uid="creator",
         created_at=datetime(2026, 1, 1, 1, 2, 3),
@@ -89,8 +90,10 @@ async def test_products_cache_round_trips_soft_deleted_product() -> None:
     cached_products = await cache.get_products()
     assert cached_products is not None
     assert cached_products[0].label_names == ("Label1", "Label2")
+    assert cached_products[0].stock == 17
     cached_product = json.loads(client.values["products:info"])[0]
     assert cached_product["label_names"] == ["Label1", "Label2"]
+    assert cached_product["stock"] == 17
 
 
 @pytest.mark.asyncio

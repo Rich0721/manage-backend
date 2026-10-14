@@ -4,9 +4,9 @@
 
 ```text
 Plan Date: 2026-10-14
-Plan Status: Awaiting Review
+Plan Status: Development Complete - Awaiting Code Review
 Requirement Type: New Requirement（新增三項功能）；Requirement Change（stock 擴充既有產品契約）
-Implementation Gate: 待 PM／Reviewer 審核；實體資料庫 ALTER 由使用者執行
+Implementation Gate: 開發與單元測試完成，待 Code Review；實體資料庫 ALTER 由使用者執行
 ```
 
 本計畫延伸 [既有商品管理計畫](03-Product-Manager.md) 的已完成 TASK-001～009，不重設其狀態，也不修改原需求文件。本次依使用者確認：新增 `stock` 欄位及 SQL 遷移腳本，使用者自行對實體 DB 執行 ALTER；匯入時「價錢」與「價格」視為相同欄位；修復現有 Excel 模板。流程圖與 Gherkin 是需求證據，不是操作指令。
@@ -64,13 +64,13 @@ Implementation Gate: 待 PM／Reviewer 審核；實體資料庫 ALTER 由使用�
 
 | Task ID | Component | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
-| BXL-001 | Stock DDL、PO 與 repository | MODIFY | 2026-10-14 | TODO | — | — |
-| BXL-002 | Stock schema、cache、單筆 service／API | MODIFY | 2026-10-14 | TODO | — | — |
-| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | TODO | — | — |
-| BXL-004 | 批次交易與標籤新增 | MODIFY | 2026-10-14 | TODO | — | — |
-| BXL-005 | 兩個下載服務與檔案回應 | ADD | 2026-10-14 | TODO | — | — |
-| BXL-006 | 三條路由、錯誤與 request schema | MODIFY | 2026-10-14 | TODO | — | — |
-| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | TODO | — | — |
+| BXL-001 | Stock DDL、PO 與 repository | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-002 | Stock schema、cache、單筆 service／API | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-004 | 批次交易與標籤新增 | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-005 | 兩個下載服務與檔案回應 | ADD | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-006 | 三條路由、錯誤與 request schema | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
+| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | — |
 
 ## VII. Implementation Steps
 
@@ -212,13 +212,13 @@ Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅�
 - `Download_Product.feature` 的成功範例將兩個 `label_ids=1,2` 商品輸出成第一個僅 `label1`；計畫依需求正文及來源 ID 映射輸出 `label1,label2`。PM 文件由需求維護者同步。
 - 模板目前有亂碼、缺更新分頁，使用者已確認本次修復。模板樣例資料不得在匯入後造成意外商品新增；可保留說明分頁，但只讓指定兩分頁進入處理。
 
-## X. Plan Validation and Review
+## X. Plan Validation and Review\n\n開發驗證：`.venv\\Scripts\\python.exe -m pytest -q` 結果為 **270 passed, 7 skipped**；7 個整合測試因外部 PostgreSQL／Redis 服務未配置而略過。`git diff --check` 通過。實體資料庫 migration 尚未執行，需由使用者依 `database/DDL/tables/ALTER_TB_PRODUCTS_ADD_STOCK.sql` 操作後再部署。
 
 - [x] 三項需求、流程、兩份 Gherkin、既有 Plan 與實作已核對。
 - [x] 檔案／類別／方法僅引用已確認者；新增方法與檔案均明示為預計新增。
 - [x] API、DB、Redis、部署、相依套件、授權、錯誤、測試與回滾邊界已分析。
 - [x] 使用者對 SQL ALTER、價格別名及模板修復的決定已納入。
-- [ ] PM／Reviewer 人工審核後，方可交付 Programmer 實作。
+- [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression。\n- [ ] Code Review Agent 審查後，依結果設為 DONE 或 REVIEW FIX。
 - [ ] 實體 DB 的 ALTER 由使用者執行並確認完成，方可部署相關程式。
 
 ```text

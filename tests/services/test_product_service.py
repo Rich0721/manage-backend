@@ -1,22 +1,27 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
+from io import BytesIO
 
+from openpyxl import Workbook
 import pytest
 
 from src.constants.user import UserRole
 from src.models.po.product import Product
+from src.models.po.label import Label
 from src.models.po.user import UserPO
 from src.models.schemas.authorization import AuthorizationObject
 from src.models.schemas.product import ProductCreateInfo
 from src.models.schemas.product import ProductDeleteInfo
 from src.models.schemas.product import ProductUpdateInfo
+from src.models.schemas.product import ProductDownloadInfo
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
 from src.services.authorization_service import AuthorizationContext
 from src.services.product_errors import ProductLabelNotFoundError
 from src.services.product_errors import ProductCacheUnavailableError
 from src.services.product_errors import ProductNotFoundError
 from src.services.product_service import ProductService
+from src.services.product_errors import ProductBatchError
 
 
 class FakeAuthorization(object):
@@ -123,6 +128,15 @@ class FakeProducts(object):
     async def list_all(self) -> list[Product]:
         return self.values
 
+    async def get_by_id_in_transaction(
+        self,
+        product_id: str,
+        connection: object,
+    ) -> Product | None:
+        return next(
+            (product for product in self.values if product.id == product_id),
+            None,
+        )
 
     async def update(self, product: Product, connection: object) -> bool:
         for index, current in enumerate(self.values):
@@ -156,8 +170,37 @@ class FakeProducts(object):
         return False
 
 class FakeLabels(object):
-    async def list_all(self) -> list[object]:
-        return []
+    def __init__(self) -> None:
+        self.values: list[Label] = []
+
+    async def list_all(self) -> list[Label]:
+        return self.values
+
+    async def list_all_in_transaction(self, connection: object) -> list[Label]:
+        return self.values.copy()
+
+    async def insert(self, label: Label, connection: object) -> Label:
+        created = Label(
+            id=len(self.values) + 1,
+            name=label.name,
+            created_uid=label.created_uid,
+            created_at=label.created_at,
+            updated_uid=label.updated_uid,
+            updated_at=label.updated_at,
+        )
+        self.values.append(created)
+        return created
+
+
+def make_batch_file() -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Add Product"
+    sheet.append(["商品名稱", "商品分類", "成本", "價格", "庫存"])
+    sheet.append(["Batch product", "New label", 10, 20, 3])
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
 
 
 @pytest.mark.asyncio
@@ -444,3 +487,97 @@ async def test_cache_rebuild_failure_after_insert_returns_503() -> None:
     assert len(products.values) == 1
     assert cache.post_commit_invalidations == 1
     assert cache.products is None
+
+
+@pytest.mark.asyncio
+async def test_batch_add_creates_missing_label_and_preserves_stock() -> None:
+    products = FakeProducts()
+    cache = FakeProductCache()
+    labels = FakeLabels()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    result = await service.batch_products(
+        AuthorizationObject(uid="operator"),
+        "products.xlsx",
+        make_batch_file(),
+    )
+
+    assert len(products.values) == 1
+    assert products.values[0].stock == 3
+    assert products.values[0].label_ids == "1"
+    assert labels.values[0].name == "New label"
+    assert result.info.root[0].stock == 3
+    assert cache.products == products.values
+
+
+@pytest.mark.asyncio
+async def test_batch_invalid_file_returns_requested_message() -> None:
+    products = FakeProducts()
+    cache = FakeProductCache()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ProductBatchError) as error:
+        await service.batch_products(
+            AuthorizationObject(uid="operator"),
+            "products.txt",
+            b"invalid",
+        )
+
+    assert error.value.public_message == "檔案格式不正確，請上傳Excel檔案"
+    assert products.values == []
+    assert cache.products is None
+
+
+@pytest.mark.asyncio
+async def test_download_product_data_persists_uid_workbook(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("src.services.product_service.FILES_DIRECTORY", tmp_path)
+    product = Product(
+        id="1790705105001",
+        name="Download product",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        stock=7,
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+        label_names=("Label1",),
+    )
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        FakeProducts(),  # type: ignore[arg-type]
+        FakeProductCache([product]),  # type: ignore[arg-type]
+        FakeLabels(),  # type: ignore[arg-type]
+        FakeLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    result = await service.download_product_data(
+        AuthorizationObject(uid="operator"),
+        ProductDownloadInfo(ids=product.id),
+    )
+
+    assert result.filename == "operator.xlsx"
+    assert (tmp_path / result.filename).read_bytes() == result.content

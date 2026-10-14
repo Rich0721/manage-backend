@@ -254,7 +254,7 @@ class ProductCacheRepository(object):
     def __product_to_value(
         product: Product,
         label_names_by_id: Mapping[int, str] | None,
-    ) -> dict[str, str | bool | list[str]]:
+    ) -> dict[str, str | int | bool | list[str]]:
         if product.label_names is not None:
             label_names = list(product.label_names)
         elif label_names_by_id is None:
@@ -278,6 +278,7 @@ class ProductCacheRepository(object):
             "label_names": label_names,
             "cost": str(product.cost),
             "price": str(product.price),
+            "stock": product.stock,
             "delete_flag": product.delete_flag,
             "created_uid": product.created_uid,
             "created_at": product.created_at.isoformat(),
@@ -304,6 +305,7 @@ class ProductCacheRepository(object):
             label_ids=str(value["label_ids"]),
             cost=Decimal(str(value["cost"])),
             price=Decimal(str(value["price"])),
+            stock=int(value.get("stock", 0)),
             delete_flag=bool(value["delete_flag"]),
             created_uid=str(value["created_uid"]),
             created_at=datetime.fromisoformat(str(value["created_at"])),

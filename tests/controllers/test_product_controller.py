@@ -12,6 +12,7 @@ from src.models.schemas.product import ProductCreateResponseInfo
 from src.models.schemas.product import ProductListResponseInfo
 from src.models.schemas.product import ProductResponseInfo
 from src.services.authorization_service import AuthorizationContext
+from src.services.product_service import ProtectedFileResult
 from src.services.product_service import ProtectedProductResult
 from src.services.product_errors import ProductCacheUnavailableError
 from src.services.product_errors import ProductConflictError
@@ -102,6 +103,7 @@ def test_add_product_uses_http_headers_when_json_headers_conflict() -> None:
         "label_names": "label1",
         "cost": 100.0,
         "price": 150.0,
+        "stock": 0,
     }
 
 
@@ -389,3 +391,70 @@ def test_product_routes_map_service_errors_to_standard_envelopes(
     assert response.json()["body"] == {
         "info": {},
     }
+
+
+def test_batch_products_accepts_multipart_upload() -> None:
+    service = AsyncMock()
+    service.batch_products.return_value = ProtectedProductResult(
+        context=AuthorizationContext("header-user", "Bearer renewed", False),
+        info=ProductListResponseInfo([]),
+    )
+
+    with make_client(service) as client:
+        response = client.post(
+            "/productController/batchProducts",
+            headers={"uid": "header-user", "Authorization": "Bearer request"},
+            files={"file": ("products.xlsx", b"workbook", "application/octet-stream")},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["Status"] == AuthStatus.SUCCESS
+    assert service.batch_products.await_args.args[1:] == (
+        "products.xlsx",
+        b"workbook",
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "method", "filename"),
+    [
+        ("/productController/downloadTemplate", "get", "Batch Add Products.xlsx"),
+        ("/productController/downloadProductData", "post", "header-user.xlsx"),
+    ],
+)
+def test_download_endpoints_return_authorized_excel_response(
+    path: str,
+    method: str,
+    filename: str,
+) -> None:
+    service = AsyncMock()
+    result = ProtectedFileResult(
+        context=AuthorizationContext("header-user", "Bearer renewed", False),
+        filename=filename,
+        content=b"xlsx-bytes",
+    )
+    if method == "get":
+        service.download_template.return_value = result
+    else:
+        service.download_product_data.return_value = result
+
+    with make_client(service) as client:
+        response = client.request(
+            method,
+            path,
+            headers={"uid": "header-user", "Authorization": "Bearer request"},
+            json=(
+                {"body": {"info": {"ids": "1790705105001"}}}
+                if method == "post"
+                else None
+            ),
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"xlsx-bytes"
+    assert response.headers["Status"] == AuthStatus.SUCCESS
+    assert response.headers["Uid"] == "header-user"
+    assert filename in response.headers["Content-Disposition"]
+    assert response.headers["Content-Type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )

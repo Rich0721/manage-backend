@@ -31,3 +31,9 @@ class ProductCacheUnavailableError(ApplicationError):
     status_code = 503
     auth_status = AuthStatus.SUCCESS
     message = ProductMessage.CACHE_UNAVAILABLE
+
+
+class ProductBatchError(ApplicationError):
+    status_code = 400
+    auth_status = AuthStatus.SUCCESS
+    message = "商品資料錯誤，請檢查Excel內容"

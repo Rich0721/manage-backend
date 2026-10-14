@@ -4,6 +4,7 @@ CREATE TABLE tb_products (
     label_ids TEXT NOT NULL,
     cost NUMERIC(10, 2) NOT NULL,
     price NUMERIC(10, 2) NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0,
     delete_flag BOOLEAN NOT NULL DEFAULT FALSE,
     created_uid VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL,
@@ -17,6 +18,7 @@ COMMENT ON COLUMN tb_products.name IS 'Product name';
 COMMENT ON COLUMN tb_products.label_ids IS 'Comma-separated label IDs';
 COMMENT ON COLUMN tb_products.cost IS 'Product cost';
 COMMENT ON COLUMN tb_products.price IS 'Product price';
+COMMENT ON COLUMN tb_products.stock IS 'Product stock quantity';
 COMMENT ON COLUMN tb_products.delete_flag IS 'Soft-delete flag';
 COMMENT ON COLUMN tb_products.created_uid IS 'Creator UID';
 COMMENT ON COLUMN tb_products.created_at IS 'UTC creation timestamp';
