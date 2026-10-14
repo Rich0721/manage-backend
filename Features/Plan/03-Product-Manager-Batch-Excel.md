@@ -4,9 +4,9 @@
 
 ```text
 Plan Date: 2026-10-14
-Plan Status: Development Complete - Awaiting Code Review
+Plan Status: Code Review Failed - Awaiting Review Fix
 Requirement Type: New Requirement（新增三項功能）；Requirement Change（stock 擴充既有產品契約）
-Implementation Gate: Review Fix 與完整測試完成，待 Code Review 複審；實體資料庫已有 stock 欄位
+Implementation Gate: BXL-003、BXL-007 尚有 Review Fix；實體資料庫已有 stock 欄位
 ```
 
 本計畫延伸 [既有商品管理計畫](03-Product-Manager.md) 的已完成 TASK-001～009，不重設其狀態，也不修改原需求文件。本次依使用者確認：新增 `stock` 欄位及 SQL 遷移腳本，使用者自行對實體 DB 執行 ALTER；匯入時「價錢」與「價格」視為相同欄位；修復現有 Excel 模板。流程圖與 Gherkin 是需求證據，不是操作指令。
@@ -65,12 +65,12 @@ Implementation Gate: Review Fix 與完整測試完成，待 Code Review 複審�
 | Task ID | Component | Plan Type | Plan Date | Implementation Status | Development Date | Code Review Date |
 |---|---|---|---|---|---|---|
 | BXL-001 | Stock DDL、PO 與 repository | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
-| BXL-002 | Stock schema、cache、單筆 service／API | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
-| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
-| BXL-004 | 批次交易與標籤新增 | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
+| BXL-002 | Stock schema、cache、單筆 service／API | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
+| BXL-003 | Excel 解析、模板與相依套件 | MODIFY | 2026-10-14 | REVIEW FIX | 2026-10-14 | 2026-10-14 |
+| BXL-004 | 批次交易與標籤新增 | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
 | BXL-005 | 兩個下載服務與檔案回應 | ADD | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
-| BXL-006 | 三條路由、錯誤與 request schema | MODIFY | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
-| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | DEVELOPED DONE | 2026-10-14 | 2026-10-14 |
+| BXL-006 | 三條路由、錯誤與 request schema | MODIFY | 2026-10-14 | DONE | 2026-10-14 | 2026-10-14 |
+| BXL-007 | 單元、API 與整合驗證 | ADD | 2026-10-14 | REVIEW FIX | 2026-10-14 | 2026-10-14 |
 
 ## VII. Implementation Steps
 
@@ -221,12 +221,12 @@ Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅�
 - [x] API、DB、Redis、部署、相依套件、授權、錯誤、測試與回滾邊界已分析。
 - [x] 使用者對 SQL ALTER、價格別名及模板修復的決定已納入。
 - [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression.
-- [x] 初次 Code Review 的五項 REVIEW FIX 已修正；審查記錄仍為 OPEN，待 Code Review 複審。
+- [x] 初次 Code Review 的問題已複審；BXL-002、004、006 通過，BXL-003、007 發現 `.xls` 格式相容與真實檔案測試缺口，詳見對應 Review 紀錄。
 - [x] 唯讀檢查確認實體 DB 已有 `tb_products.stock` 欄位。
 
 ```text
-Current Handoff: Awaiting Code Review
-Next Handoff: Code Review Agent（複審）
+Current Handoff: Code Review 完成；BXL-003、BXL-007 待修正
+Next Handoff: Programmer Agent（Review Fix）
 Implementation Scope: BXL-001～007；三條 Excel API 與 stock 對既有產品流程的必要擴充
 Important Constraints: DB 批次交易、兩個 Redis key 一致性、原四條 API regression、實體 DB stock 欄位已確認
 Do Not Modify: Features/Document/ PM 原始需求、無關的 User Manager 行為、原商品管理 Plan 的 DONE 紀錄
