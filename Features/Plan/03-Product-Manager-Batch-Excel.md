@@ -212,19 +212,22 @@ Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅�
 - `Download_Product.feature` 的成功範例將兩個 `label_ids=1,2` 商品輸出成第一個僅 `label1`；計畫依需求正文及來源 ID 映射輸出 `label1,label2`。PM 文件由需求維護者同步。
 - 模板目前有亂碼、缺更新分頁，使用者已確認本次修復。模板樣例資料不得在匯入後造成意外商品新增；可保留說明分頁，但只讓指定兩分頁進入處理。
 
-## X. Plan Validation and Review\n\n開發驗證：`.venv\\Scripts\\python.exe -m pytest -q` 結果為 **270 passed, 7 skipped**；7 個整合測試因外部 PostgreSQL／Redis 服務未配置而略過。`git diff --check` 通過。實體資料庫 migration 尚未執行，需由使用者依 `database/DDL/tables/ALTER_TB_PRODUCTS_ADD_STOCK.sql` 操作後再部署。
+## X. Plan Validation and Review
+
+開發驗證：載入 `.env` 的整合測試連線後，`.venv\Scripts\python.exe -m pytest -q` 結果為 **277 passed**；商品管理整合測試 5 項全數通過。唯讀檢查確認實體資料庫已有 `tb_products.stock`，Redis `PING` 成功。`git diff --check` 通過。
 
 - [x] 三項需求、流程、兩份 Gherkin、既有 Plan 與實作已核對。
 - [x] 檔案／類別／方法僅引用已確認者；新增方法與檔案均明示為預計新增。
 - [x] API、DB、Redis、部署、相依套件、授權、錯誤、測試與回滾邊界已分析。
 - [x] 使用者對 SQL ALTER、價格別名及模板修復的決定已納入。
-- [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression。\n- [ ] Code Review Agent 審查後，依結果設為 DONE 或 REVIEW FIX。
-- [ ] 實體 DB 的 ALTER 由使用者執行並確認完成，方可部署相關程式。
+- [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression.
+- [ ] Code Review Agent 審查後，依結果設為 DONE 或 REVIEW FIX.
+- [x] 唯讀檢查確認實體 DB 已有 `tb_products.stock` 欄位。
 
 ```text
-Current Handoff: Awaiting Review
-Next Handoff: Programmer Agent（審核通過後）
+Current Handoff: Awaiting Code Review
+Next Handoff: Code Review Agent
 Implementation Scope: BXL-001～007；三條 Excel API 與 stock 對既有產品流程的必要擴充
-Important Constraints: DB 批次交易、兩個 Redis key 一致性、原四條 API regression、使用者執行實體 ALTER
+Important Constraints: DB 批次交易、兩個 Redis key 一致性、原四條 API regression、實體 DB stock 欄位已確認
 Do Not Modify: Features/Document/ PM 原始需求、無關的 User Manager 行為、原商品管理 Plan 的 DONE 紀錄
 ```
