@@ -108,7 +108,7 @@ URI: `/sellController/sellProduct`
 
 ### 2-2. Get Order
 Flow Chart:[取得訂單資訊](./flows/04-Sell-Product/02-Ger-Orders.mmd)
-Gherkin:
+Gherkin: [取得訂單資訊](./Scenarios/04-Sell-Product/02-Ger-Orders.feature)
 METHOD: GET
 URI: `/sellController/getOrder?orderId={orderId}&startDate={startDate}&endDate={endDate}`
 
@@ -171,7 +171,10 @@ URI: `/sellController/getOrder?orderId={orderId}&startDate={startDate}&endDate={
 
 #### 2-2-5. Business Rules
 - `orderId`相關規定如下：
-    - `all`: 不區分大小寫，表示需要查詢所有區間，`startDate`與`endDate`必須提供；且`startDate`與`endDate`區間最多為一個月，需檢查區間長度與合法性，發生錯誤請回傳Status Code-`400`且Message-`請檢查查詢日期區間正確或完整`
+    - `all`: 不區分大小寫，表示需要查詢所有區間，`startDate`與`endDate`必須提供；且`startDate`與`endDate`區間最多為30天，需檢查區間長度與合法性
+        - startDate為空，需回傳Status Code-`400`且Message-`請輸入查詢起始日期`
+        - endDate為空，需回傳Status Code-`400`且Message-`請輸入查詢結束日期`
+        - startDate與endDate區間超過30天，需回傳Status Code-`400`且Message-`查詢日期區間不得超過30天`
     - 其他情況下，`orderId`不得為空，且需為有效的訂單ID，`startDate`與`endDate`則不需要提供，若提供也不需要使用，避免引起混淆。
 - `createdBy`需要透過`tb_users`一表中的`uid`欄位進行關聯，以獲取訂單建立者的姓名。
 - `productName`需要透過`tb_products`一表中的`id`欄位進行關聯，以獲取商品名稱。
