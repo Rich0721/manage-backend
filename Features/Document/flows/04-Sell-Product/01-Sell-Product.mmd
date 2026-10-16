@@ -1,0 +1,24 @@
+flowchart TD
+    %% Nodes
+    StartPoint(開始)
+    EndPoint(結束)
+    ReceiveInformation(Request Information)
+    ValidateInformation{驗證使用者登入資訊}
+    ReturnError(返回錯誤訊息)
+    ProduceOrderId(生成訂單ID)
+    InsertOrder(寫入訂單資料)
+    InsertOrderItems(寫入訂單項目資料)
+    UpdateStock(更新庫存)
+    SyncRedis(同步Redis)
+
+    %% Edges
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation -->|驗證失敗| ReturnError
+    ValidateInformation -->|驗證成功| ProduceOrderId
+    ProduceOrderId --> InsertOrder
+    InsertOrder --> InsertOrderItems
+    InsertOrderItems --> UpdateStock
+    UpdateStock --> SyncRedis
+    ReturnError --> EndPoint
+    SyncRedis --> EndPoint

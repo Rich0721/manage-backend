@@ -1,0 +1,31 @@
+flowchart TD
+    %% Nodes
+    StartPoint(開始)
+    EndPoint(結束)
+    ReceiveInformation(Request Information)
+    ValidateInformation{驗證使用者登入資訊}
+    ReturnError(返回錯誤訊息)
+    CheckOrderId{檢查訂單ID}
+    CheckStartDateAndEndDate{檢查起始日期與結束日期}
+    QueryOrders(查詢訂單與建立者資訊)
+    QueryUsers(查詢建立者資訊)
+    QueryOrderItems(查詢訂單項目資訊)
+    QueryProductInfo(查詢商品資訊)
+    ReturnResults(返回查詢結果)
+
+
+
+    StartPoint --> ReceiveInformation
+    ReceiveInformation --> ValidateInformation
+    ValidateInformation -->|驗證失敗| ReturnError
+    ValidateInformation -->|驗證成功| CheckOrderId
+    CheckOrderId -->|orderId為all| CheckStartDateAndEndDate
+    CheckOrderId -->|orderId非all| QueryOrders
+    CheckStartDateAndEndDate --> |檢查不通過| ReturnError
+    CheckStartDateAndEndDate --> |檢查通過| QueryOrders
+    QueryOrders --> QueryUsers
+    QueryUsers --> QueryOrderItems
+    QueryOrderItems --> QueryProductInfo
+    QueryProductInfo --> ReturnResults
+    ReturnError --> EndPoint
+    ReturnResults --> EndPoint
