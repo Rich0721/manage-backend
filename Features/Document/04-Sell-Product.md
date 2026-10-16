@@ -8,7 +8,7 @@
 
 ### 2-1. 販賣商品
 Flow Chart:[訂單流程圖](./flows/04-Sell-Product/01-Sell-Product.mmd)
-Gherkin:
+Gherkin: [訂單情境](./Scenarios/04-Sell-Product/01-Sell-Product.feature)
 METHOD: POST
 URI: `/sellController/sellProduct`
 
@@ -75,11 +75,11 @@ URI: `/sellController/sellProduct`
 |------|------|------|
 | orderId | String | 訂單ID |
 | totalAmount | Decimal | 總金額 |
-| totalDiscount | Decimal | 總折扣金額 |
+| totalDiscount | Decimal | 實際銷售金額 |
 | productId | String | 商品ID |
 | quantity | Integer | 銷售數量 |
 | price | Decimal | 銷售價格 |
-| discount | Decimal | 折扣價格 |
+| discount | Decimal | 折扣後價格 |
 
 
 #### 2-1-4. 使用者操作
@@ -157,12 +157,12 @@ URI: `/sellController/getOrder?orderId={orderId}&startDate={startDate}&endDate={
 |------|------|------|
 | orderId | String | 訂單ID |
 | totalAmount | Decimal | 總金額 |
-| totalDiscount | Decimal | 總折扣金額 |
+| totalDiscount | Decimal | 實際銷售金額 |
 | productId | String | 商品ID |
 | productName | String | 商品名稱 |
 | quantity | Integer | 銷售數量 |
 | price | Decimal | 銷售價格 |
-| discount | Decimal | 折扣價格 |
+| discount | Decimal | 折扣後價格 |
 | createdAt | String | 訂單建立時間，格式為YYYY-MM-DD HH:MM:SS |
 | createdBy | String | 訂單建立者 |
 
@@ -191,7 +191,7 @@ Table Name: tb_orders
 |----------------|----------------|-------------|
 | id             | varchar(10)    | 訂單ID      |
 | total_amount   | decimal(10,2)  | 總金額      |
-| total_discount | decimal(10,2)  | 總折扣金額   |
+| total_discount | decimal(10,2)  | 實際銷售金額   |
 | created_uid    | varchar(255)   | 創建用戶     |
 | created_at     | datetime       | 創建時間     |
 
@@ -205,6 +205,6 @@ Table Name: tb_orders_items
 | product_id     | varchar(13)    | 商品ID      |
 | quantity       | int            | 銷售數量    |
 | price          | decimal(10,2)  | 銷售價格    |
-| discount       | decimal(10,2)  | 折扣價格    |
+| discount       | decimal(10,2)  | 折扣後價格    |
 | created_at     | datetime       | 訂單商品建立時間 |
 | created_by     | varchar(255)   | 訂單商品建立者 |
