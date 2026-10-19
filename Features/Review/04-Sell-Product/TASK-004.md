@@ -1,6 +1,6 @@
 # TASK-004 Code Review
 
-Status: OPEN
+Status: RESOLVED
 
 ## Task ID
 
@@ -33,6 +33,6 @@ TASK-004
 
 ## Resolution
 
-Status: OPEN
+Status: RESOLVED
 
-待 Programmer Agent 修正後重新審查。
+2026-10-19 重新審查：`SellService` 已將訂單 ID 限定為 10 位 ASCII 數字，並在 `endDate=date.max` 時回 `OrderBadRequestError`；兩者均符合 HTTP 400 契約。`tests/services/test_sell_service.py` 補上兩個邊界情境，`tests/controllers/test_sell_controller.py` 驗證 400 封套。原 Review Issue 已解決。
