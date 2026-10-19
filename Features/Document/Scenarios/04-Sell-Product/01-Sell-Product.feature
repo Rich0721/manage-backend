@@ -3,7 +3,7 @@ Feature: 販售商品操作
     Scenario: 成功販售商品
         Given 使用者已經登入並具有有效的授權
           And tb_products 包含以下資訊
-            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_uid | updated_at          |
             | 1790705105001 | 產品A | 標籤1,標籤2    | 100  | 150   | 5     | false       | userB        | 2024-06-01 12:00:00 |
             | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 5     | false       | userB        | 2024-06-01 12:00:00 |
             | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 5     | false       | userC        | 2024-06-01 12:00:00 |
@@ -29,7 +29,7 @@ Feature: 販售商品操作
             | 0000000002 | 1790705105001 | 2        | 150.00   | 150.00        | 2024-06-02 12:00:00 | uid123     |
             | 0000000002 | 1790705105002 | 2        | 250.00   | 200.00        | 2024-06-02 12:00:00 | uid123     |
          And tb_products應更新成以下資訊
-            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_uid | updated_at          |
             | 1790705105001 | 產品A | 標籤1,標籤2    | 100  | 150   | 3     | false       | userB        | 2024-06-02 12:00:00 |
             | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 3     | false       | userB        | 2024-06-02 12:00:00 |
             | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 5     | false       | userC        | 2024-06-01 12:00:00 |
@@ -38,7 +38,7 @@ Feature: 販售商品操作
     Scenario: 成功販售商品，但庫存不足
         Given 使用者已經登入並具有有效的授權
           And tb_products 包含以下資訊
-            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_uid | updated_at          |
             | 1790705105001 | 產品A | 標籤1,標籤2    | 100  | 150   | 0     | false       | userB        | 2024-06-01 12:00:00 |
             | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 5     | false       | userB        | 2024-06-01 12:00:00 |
             | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 5     | false       | userC        | 2024-06-01 12:00:00 |
@@ -64,7 +64,7 @@ Feature: 販售商品操作
             | 0000000002 | 1790705105001 | 2        | 150.00   | 150.00        | 2024-06-02 12:00:00 | uid123     |
             | 0000000002 | 1790705105002 | 2        | 250.00   | 200.00        | 2024-06-02 12:00:00 | uid123     |
          And tb_products應更新成以下資訊
-            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_uid | updated_at          |
             | 1790705105001 | 產品A | 標籤1,標籤2    | 100  | 150   | 0     | false       | userB        | 2024-06-02 12:00:00 |
             | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 3     | false       | userB        | 2024-06-02 12:00:00 |
             | 1790705105003 | 產品C | 標籤4         | 300  | 350   | 5     | false       | userC        | 2024-06-01 12:00:00 |
@@ -73,7 +73,7 @@ Feature: 販售商品操作
     Scenario: 商品不存在
          Given 使用者已經登入並具有有效的授權
           And tb_products 包含以下資訊
-            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_user | updated_at          |
+            | id            | name  | label_names   | cost | price | stock | delete_flag | updated_uid | updated_at          |
             | 1790705105001 | 產品A | 標籤1,標籤2    | 100  | 150   | 0     | false       | userB        | 2024-06-01 12:00:00 |
             | 1790705105002 | 產品B | 標籤3         | 200  | 250   | 5     | false       | userB        | 2024-06-01 12:00:00 |
           And tb_orders 包含以下資訊
