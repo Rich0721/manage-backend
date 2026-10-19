@@ -12,6 +12,7 @@ from src.models.po.order import OrderItemResult
 from src.models.schemas.order import GetOrdersResponseInfo
 from src.services.authorization_service import AuthorizationContext
 from src.services.order_errors import OrderNotFoundError
+from src.services.order_errors import OrderBadRequestError
 from src.services.order_errors import SoldProductNotFoundError
 from src.services.sell_service import ProtectedOrderResult
 
@@ -116,6 +117,20 @@ def test_get_order_not_found_returns_404_envelope() -> None:
 
     assert response.status_code == 404
     assert unquote(response.headers["Message"]) == "訂單不存在"
+
+
+def test_get_order_invalid_id_returns_400() -> None:
+    service = AsyncMock()
+    service.get_order.side_effect = OrderBadRequestError
+
+    with make_client(service) as client:
+        response = client.get(
+            "/sellController/getOrder",
+            headers={"Uid": "seller"},
+            params={"orderId": "１２３４５６７８９０"},
+        )
+
+    assert response.status_code == 400
 
 
 def test_missing_product_returns_400() -> None:

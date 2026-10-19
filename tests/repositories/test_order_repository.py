@@ -81,6 +81,7 @@ async def test_order_repository_creates_and_queries_order_with_product_names() -
             "INSERT INTO tb_users (uid, user_name) VALUES (%s, %s)",
             ("seller", "Seller"),
         )
+        next_midnight = datetime(2026, 10, 20, 0, 0, 0)
         await connection.execute(
             """
             INSERT INTO tb_products (
@@ -99,6 +100,20 @@ async def test_order_repository_creates_and_queries_order_with_product_names() -
                 now,
                 "seller",
                 now,
+            ),
+        )
+        await connection.execute(
+            """
+            INSERT INTO tb_orders (
+                id, total_amount, total_discount, created_uid, created_at
+            ) VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                "0000000002",
+                Decimal("10"),
+                Decimal("8"),
+                "seller",
+                next_midnight,
             ),
         )
         await connection.commit()
@@ -137,11 +152,17 @@ async def test_order_repository_creates_and_queries_order_with_product_names() -
             start_date=date(2026, 10, 19),
             end_date_exclusive=date(2026, 10, 20),
         )
+        after_midnight = await orders.get_orders(
+            start_date=date(2026, 10, 20),
+            end_date_exclusive=date(2026, 10, 21),
+        )
 
         assert order_id == "0000000001"
         assert by_id[0].created_by == "Seller"
         assert by_id[0].items[0].product_name == "Product A"
         assert len(by_date) == 1
+        assert len(after_midnight) == 1
+        assert after_midnight[0].id == "0000000002"
     finally:
         await connection.close()
 

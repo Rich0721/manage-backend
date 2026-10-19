@@ -278,7 +278,11 @@ class ProductService(object):
             updated_uid=context.uid,
             updated_at=self.__utc_now(),
         )
-        await self.__write_product(product, operation="update")
+        product = await self.__write_product(
+            product,
+            operation="update",
+            preserve_latest_stock=info.stock is None,
+        )
         await self.__refresh_session(context)
         return ProtectedProductResult(
             context=context,
@@ -732,7 +736,13 @@ class ProductService(object):
             raise ProductPermissionError
         return context
 
-    async def __write_product(self, product: Product, operation: str) -> None:
+    async def __write_product(
+        self,
+        product: Product,
+        operation: str,
+        *,
+        preserve_latest_stock: bool = False,
+    ) -> Product:
         committed = False
         published = False
         try:
@@ -744,7 +754,22 @@ class ProductService(object):
                         if operation == "add":
                             await self.__products.insert(product, connection)
                         else:
-                            updated = await self.__products.update(product, connection)
+                            if preserve_latest_stock:
+                                product_repository = self.__products
+                                current = await (
+                                    product_repository
+                                    .get_by_id_for_update_in_transaction(
+                                        product.id,
+                                        connection,
+                                    )
+                                )
+                                if current is None or current.delete_flag:
+                                    raise ProductNotFoundError
+                                product = replace(product, stock=current.stock)
+                            updated = await self.__products.update(
+                                product,
+                                connection,
+                            )
                             if not updated:
                                 raise ProductNotFoundError
                 except DuplicateProductRecordError as error:
@@ -764,6 +789,7 @@ class ProductService(object):
                 await self.__invalidate_failed_publication(
                     product.id, operation
                 )
+        return product
 
     async def __delete_product(self, product: Product) -> None:
         committed = False

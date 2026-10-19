@@ -148,6 +148,13 @@ class FakeProducts(object):
             None,
         )
 
+    async def get_by_id_for_update_in_transaction(
+        self,
+        product_id: str,
+        connection: object,
+    ) -> Product | None:
+        return await self.get_by_id_in_transaction(product_id, connection)
+
     async def update(self, product: Product, connection: object) -> bool:
         for index, current in enumerate(self.values):
             if current.id == product.id and not current.delete_flag:

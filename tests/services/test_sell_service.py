@@ -39,13 +39,16 @@ class FakeAuthorization:
 
 
 class FakeUserRepository:
+    def __init__(self, permission: UserRole = UserRole.USER) -> None:
+        self.permission = permission
+
     async def get_by_uid(self, uid: str) -> UserPO:
         return UserPO(
             uid=uid,
             email="seller@example.com",
             user_name="Seller",
             password="unused",
-            permission=UserRole.USER,
+            permission=self.permission,
             created_at=NOW,
             updated_at=NOW,
         )
@@ -209,7 +212,10 @@ def make_product(
     )
 
 
-def make_service(products: list[Product]):
+def make_service(
+    products: list[Product],
+    permission: UserRole = UserRole.USER,
+):
     product_repository = FakeProductRepository(products)
     product_cache = FakeProductCache(products)
     order_repository = FakeOrderRepository()
@@ -219,7 +225,7 @@ def make_service(products: list[Product]):
         product_cache,  # type: ignore[arg-type]
         FakeLabelRepository(),  # type: ignore[arg-type]
         FakeLabelCache(),  # type: ignore[arg-type]
-        FakeUserRepository(),  # type: ignore[arg-type]
+        FakeUserRepository(permission),  # type: ignore[arg-type]
         FakeAuthorization(),  # type: ignore[arg-type]
     )
     return service, product_repository, product_cache, order_repository
@@ -261,6 +267,32 @@ async def test_sell_creates_order_updates_stock_audit_and_cache() -> None:
     assert updated.updated_at != NOW
     assert product_cache.replacements == 1
     assert product_cache.products[0].stock == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "permission",
+    [UserRole.ADMIN, UserRole.MANAGER, UserRole.USER],
+)
+async def test_all_supported_roles_can_sell(permission: UserRole) -> None:
+    service, _, _, orders = make_service(
+        [make_product()],
+        permission,
+    )
+
+    await service.sell(
+        AuthorizationObject(uid="seller", authorization="token"),
+        make_info(),
+    )
+
+    assert len(orders.orders) == 1
+    queried = await service.get_order(
+        AuthorizationObject(uid="seller", authorization="token"),
+        "all",
+        "2026-10-01",
+        "2026-10-31",
+    )
+    assert queried.info.root == []
 
 
 @pytest.mark.asyncio
@@ -384,3 +416,27 @@ async def test_get_all_orders_rejects_invalid_date_ranges(
         )
 
     assert error.value.public_message == message
+
+
+@pytest.mark.asyncio
+async def test_get_all_orders_rejects_unbounded_end_date() -> None:
+    service, _, _, _ = make_service([])
+
+    with pytest.raises(OrderBadRequestError):
+        await service.get_order(
+            AuthorizationObject(uid="seller", authorization="token"),
+            "all",
+            "9999-12-31",
+            "9999-12-31",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_order_rejects_unicode_digits_as_invalid_id() -> None:
+    service, _, _, _ = make_service([])
+
+    with pytest.raises(OrderBadRequestError):
+        await service.get_order(
+            AuthorizationObject(uid="seller", authorization="token"),
+            "１２３４５６７８９０",
+        )

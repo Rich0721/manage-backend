@@ -42,7 +42,7 @@ from src.services.order_errors import SoldProductNotFoundError
 
 
 LOGGER = logging.getLogger(__name__)
-ORDER_ID_PATTERN = re.compile(r"^\d{10}$")
+ORDER_ID_PATTERN = re.compile(r"^[0-9]{10}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +194,8 @@ class SellService(object):
                 raise OrderBadRequestError("查詢起始日期不得晚於結束日期")
             if (end - start).days > 30:
                 raise OrderBadRequestError(OrderMessage.DATE_RANGE_TOO_LONG)
+            if end == date.max:
+                raise OrderBadRequestError
             try:
                 results = await self.__orders.get_orders(
                     start_date=start,
