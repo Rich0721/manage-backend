@@ -6,12 +6,14 @@ from fastapi import Request
 from src.repositories.session_repository import SessionRepository
 from src.repositories.label_cache_repository import LabelCacheRepository
 from src.repositories.label_repository import LabelRepository
+from src.repositories.order_repository import OrderRepository
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_repository import ProductRepository
 from src.repositories.user_repository import UserRepository
 from src.services.authorization_service import AuthorizationService
 from src.services.user_service import UserService
 from src.services.product_service import ProductService
+from src.services.sell_service import SellService
 
 
 def get_user_service(request: Request) -> UserService:
@@ -51,4 +53,33 @@ def get_product_service(request: Request) -> ProductService:
 ProductServiceDependency = Annotated[
     ProductService,
     Depends(get_product_service),
+]
+
+
+def get_sell_service(request: Request) -> SellService:
+    settings = request.app.state.settings
+    pool = request.app.state.database_pool
+    redis_client = request.app.state.redis_client
+    users = UserRepository(pool)
+    products = ProductRepository(pool)
+    orders = OrderRepository(pool)
+    product_cache = ProductCacheRepository(redis_client)
+    labels = LabelRepository(pool)
+    label_cache = LabelCacheRepository(redis_client)
+    sessions = SessionRepository(redis_client, settings.REDIS_TTL)
+    authorization = AuthorizationService(settings, sessions)
+    return SellService(
+        orders,
+        products,
+        product_cache,
+        labels,
+        label_cache,
+        users,
+        authorization,
+    )
+
+
+SellServiceDependency = Annotated[
+    SellService,
+    Depends(get_sell_service),
 ]

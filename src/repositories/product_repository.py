@@ -94,6 +94,54 @@ class ProductRepository(object):
             raise ProductRepositoryError from error
         return self.__to_product(row) if row is not None else None
 
+    async def get_by_id_for_update_in_transaction(
+        self,
+        product_id: str,
+        connection: AsyncConnection[Any],
+    ) -> Product | None:
+        try:
+            async with connection.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    """
+                    SELECT id, name, label_ids, cost, price, stock,
+                           delete_flag, created_uid, created_at,
+                           updated_uid, updated_at
+                      FROM tb_products
+                     WHERE id = %s
+                     FOR UPDATE
+                    """,
+                    (product_id,),
+                )
+                row = await cursor.fetchone()
+        except PsycopgError as error:
+            raise ProductRepositoryError from error
+        return self.__to_product(row) if row is not None else None
+
+    async def update_stock_in_transaction(
+        self,
+        product_id: str,
+        stock: int,
+        updated_uid: str,
+        updated_at: datetime,
+        connection: AsyncConnection[Any],
+    ) -> bool:
+        try:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    """
+                    UPDATE tb_products
+                       SET stock = %s,
+                           updated_uid = %s,
+                           updated_at = %s
+                     WHERE id = %s
+                       AND delete_flag = FALSE
+                    """,
+                    (stock, updated_uid, updated_at, product_id),
+                )
+                return cursor.rowcount == 1
+        except PsycopgError as error:
+            raise ProductRepositoryError from error
+
     async def insert(
         self,
         product: Product,

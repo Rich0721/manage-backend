@@ -93,6 +93,13 @@ def test_all_exact_routes_are_registered() -> None:
     assert "post" in paths["/userController/logout"]
     assert "post" in paths["/userController/getUsers"]
     assert "put" in paths["/userController/updatePermission"]
+    for path, method in (
+        ("/sellController/sellProduct", "post"),
+        ("/sellController/getOrder", "get"),
+    ):
+        responses = paths[path][method]["responses"]
+        assert "400" in responses
+        assert "422" not in responses
     for path in paths.values():
         operation = (
             path.get("post")
@@ -119,14 +126,21 @@ def test_all_exact_routes_are_registered() -> None:
             "Uid",
             "Authorization",
         }
-        validation_schema = operation["responses"]["422"]["content"][
+        validation_status = (
+            "400"
+            if operation.get("operationId", "").startswith(
+                ("sell_product", "get_order")
+            )
+            else "422"
+        )
+        validation_schema = operation["responses"][validation_status]["content"][
             "application/json"
         ]["schema"]
         validation_schema = resolve_schema(validation_schema)
         assert "headers" in validation_schema["properties"]
         assert "header" not in validation_schema["properties"]
         assert validation_schema.get("additionalProperties") is not True
-        assert set(operation["responses"]["422"]["headers"]) == {
+        assert set(operation["responses"][validation_status]["headers"]) == {
             "Status",
             "Message",
             "Uid",

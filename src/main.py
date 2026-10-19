@@ -9,15 +9,18 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.openapi.utils import get_openapi
 
 from src.config.database import DatabaseConnectionManager
 from src.config.redis import RedisConnectionManager
 from src.config.settings import Settings
 from src.constants.user import AuthStatus
 from src.constants.user import UserMessage
+from src.constants.order import OrderMessage
 from src.controllers.user_controller import build_http_authorization_headers
 from src.controllers.user_controller import build_error_envelope
 from src.controllers.product_controller import router as product_router
+from src.controllers.sell_controller import router as sell_router
 from src.controllers.user_controller import router as user_router
 from src.services.errors import ApplicationError
 
@@ -50,6 +53,28 @@ def create_app(
     application = FastAPI(lifespan=lifespan)
     application.include_router(user_router)
     application.include_router(product_router)
+    application.include_router(sell_router)
+
+    def custom_openapi() -> dict[str, Any]:
+        if application.openapi_schema is not None:
+            return application.openapi_schema
+        schema = get_openapi(
+            title=application.title,
+            version=application.version,
+            openapi_version=application.openapi_version,
+            routes=application.routes,
+        )
+        for path in (
+            "/sellController/sellProduct",
+            "/sellController/getOrder",
+        ):
+            for operation in schema.get("paths", {}).get(path, {}).values():
+                responses = operation.get("responses", {})
+                responses.pop("422", None)
+        application.openapi_schema = schema
+        return schema
+
+    application.openapi = custom_openapi
 
     @application.exception_handler(ApplicationError)
     async def handle_application_error(
@@ -82,15 +107,25 @@ def create_app(
             }
             for item in error.errors()
         ]
+        is_order_endpoint = request.url.path in {
+            "/sellController/sellProduct",
+            "/sellController/getOrder",
+        }
+        status_code = 400 if is_order_endpoint else 422
+        message = (
+            OrderMessage.BAD_REQUEST
+            if is_order_endpoint
+            else UserMessage.VALIDATION_ERROR
+        )
         return JSONResponse(
-            status_code=422,
+            status_code=status_code,
             headers=build_http_authorization_headers(
                 status=AuthStatus.FAILED,
-                message=UserMessage.VALIDATION_ERROR,
+                message=message,
             ),
             content=build_error_envelope(
                 status=AuthStatus.FAILED,
-                message=UserMessage.VALIDATION_ERROR,
+                message=message,
                 info={"errors": details},
             ),
         )
