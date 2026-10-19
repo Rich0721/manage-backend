@@ -782,8 +782,11 @@ async def test_add_product_label_cache_failure_keeps_committed_rows_and_invalida
     )
 
     async def fail_replace(*args: object, **kwargs: object) -> None:
-        raise LabelCacheRepositoryError("injected label cache write failure")
+        if args[0]:
+            raise LabelCacheRepositoryError("injected label cache write failure")
+        await original_label_cache_replace(*args, **kwargs)
 
+    original_label_cache_replace = label_cache.replace
     monkeypatch.setattr(label_cache, "replace", fail_replace)
     try:
         await create_temp_product_tables(connection)

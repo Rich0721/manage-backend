@@ -84,13 +84,19 @@ Status: RESOLVED
 Status: OPEN
 ```
 
-- **P1／真實 DB 提交後快取失敗情境未驗證：** `test_add_product_label_cache_failure_keeps_committed_rows_and_invalidates_caches` 使用 PostgreSQL `TEMP TABLE`，但此測試的 `DirectConnectionPool` 固定重用原始連線，交易結束後 `list_all()` 仍未讀到新增資料（0 筆）；因此該斷言無法證明 DB commit 後資料保留。需要使用符合 Windows selector loop 的測試 pool／schema 設定，或以其他方式在獨立連線可見的隔離 schema 中驗證提交結果。
+- **P1／故障注入發生在交易前：** `test_add_product_label_cache_failure_keeps_committed_rows_and_invalidates_caches` 的 `fail_replace()` 無條件失敗，初次載入空的 `product:labels` 快照時便拋錯，Add transaction 尚未執行；預期的 503 不能證明 post-commit 行為。請只在寫入非空 label snapshot 時注入失敗，讓空快照初始化通過，再驗證新標籤與產品已提交且兩份快取已失效。
 - **P2／快取 snapshot 比較漏掉衍生欄位：** `test_add_product_creates_missing_label_and_refreshes_both_caches` 將 Redis 解碼後含 `label_names` 的 ProductPO 與 DB `list_all()` 回傳的 `label_names=None` 物件直接比較。產品快取依計畫應包含 label 名稱；請將斷言改為比較 DB 欄位並分別驗證快取衍生標籤名稱。
-- Windows host 測試的 PostgreSQL URL 設為 `localhost` 時，psycopg async 連線停滯；使用相同服務的 `127.0.0.1` 可以連線。README 目前 instruction 建議先載入 `.env` 全部變數，而 `.env.example` 已提供 INTEGRATION_DATABASE_URL／INTEGRATION_REDIS_URL，之後將驗證文件建議的載入方式。
+- Windows host 使用 `INTEGRATION_DATABASE_URL` 的 `127.0.0.1` 可正常連線；應透過 `.env.example` 中的 integration URL 執行測試。
 
-真實 PostgreSQL 17／Redis 8 目標服務可用；以 `127.0.0.1` 執行產品與使用者整合測試第一次得到 `14 passed, 2 failed`（一項為快取衍生欄位斷言，已修正；另一項為 TEMP TABLE 提交結果不可驗證）。修正快取斷言後，針對 Redis fencing 與 Add cache-refresh 的測試為 `2 passed`；完整整合測試的 Redis fencing 假失敗亦已由恢復 `dataclasses.replace` import 修正。完整 pytest 未載入整合 URL 為 `290 passed, 16 skipped`。
+Programmer 修正故障注入時點：空標籤快照允許寫入，只有新增標籤後的非空快照寫入會失敗。快取 snapshot 斷言改為比較 DB 欄位並獨立檢查 `label_names`。真實 PostgreSQL 17／Redis 8 測試現為整合 `16 passed`、完整 pytest `306 passed`；本次無 skip，僅有 Starlette／anyio deprecation warning。
 
 結論：Review Status 為 `OPEN`；TASK-009 標記 `REVIEW FIX`。
+
+## 2026-10-19 Programmer 修正完成，待複審
+
+`fail_replace()` 現在只在 label snapshot 非空時注入錯誤；初次空快照可正常建立，Add 寫入交易完成後才觸發發布失敗。測試直接斷言 PostgreSQL 中保留一筆標籤與一筆產品，且產品與標籤快取均為空。快取 snapshot 斷言也已拆開資料庫持久欄位與衍生 `label_names` 驗證。
+
+驗證：整合測試 `16 passed`；完整 pytest `306 passed`；`git diff --check` 通過。TASK-009 Implementation Status 已由 Programmer 更新為 `DEVELOPED DONE`，Review Status 維持 `OPEN`，待 Code Reviewer 複審。
 
 ## 2026-10-19 新增商品標籤缺漏修訂審查
 

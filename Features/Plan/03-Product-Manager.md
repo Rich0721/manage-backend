@@ -192,7 +192,7 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 | TASK-006 | Add and get products | MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
-| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-19 | REVIEW FIX | 2026-10-19 | 2026-10-19 |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-19 | DEVELOPED DONE | 2026-10-19 | 2026-10-19 |
 
 原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`DONE` 的 Task 僅處理 Header 契約遷移，實作與 Code Review 均已完成，規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 
