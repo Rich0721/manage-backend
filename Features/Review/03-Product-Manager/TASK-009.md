@@ -122,3 +122,15 @@ Status: RESOLVED
 - 本輪針對性測試為 `21 passed, 14 skipped`；完整 pytest 由 Programmer 回報 `290 passed, 16 skipped`。整合測試因未設定 PostgreSQL／Redis URL 略過，未取得本輪真實服務執行通過的證據。
 
 結論：Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。
+
+## 2026-10-19 Docker 整合測試修正複審
+
+```text
+Status: RESOLVED
+```
+
+- 原 P1 已解決：`fail_replace()` 放行初次空標籤快照，只在新標籤提交後的非空快照發布時拋出 `LabelCacheRepositoryError`。整合測試確認服務回應 `ProductCacheUnavailableError`、資料庫保留一筆商品與一筆新標籤，且兩份快取均失效。
+- 原 P2 已解決：新增商品成功測試分別比較資料庫與產品快取的商品 ID、標籤 ID、庫存，並檢查快取衍生的 `label_names`。無須修改正式程式碼或依賴。
+- 以 `.env` 的整合服務 URL 執行完整 pytest：`306 passed, 0 skipped`，僅有一項 Starlette／anyio deprecation warning；`git diff --check` 通過。
+
+結論：本次複審無待修正問題。Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。
