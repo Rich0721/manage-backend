@@ -2,7 +2,7 @@ import logging
 import re
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -90,12 +90,11 @@ class ProductService(object):
         info: ProductCreateInfo,
     ) -> ProtectedProductResult:
         context = await self.__authorize(auth)
-        label_ids = await self.__resolve_label_ids(info.label_names)
         now = self.__utc_now()
         product = Product(
             id=str(time.time_ns() // 1_000_000),
             name=info.name,
-            label_ids=",".join(str(label_id) for label_id in label_ids),
+            label_ids="",
             cost=info.cost,
             price=info.price,
             stock=info.stock,
@@ -105,12 +104,130 @@ class ProductService(object):
             updated_uid=context.uid,
             updated_at=now,
         )
-        await self.__write_product(product, operation="add")
+        try:
+            label_ids = await self.__resolve_label_ids(info.label_names)
+        except ProductLabelNotFoundError:
+            product = await self.__write_add_with_missing_labels(
+                product,
+                info.label_names,
+                context.uid,
+            )
+        else:
+            product = replace(
+                product,
+                label_ids=",".join(str(label_id) for label_id in label_ids),
+            )
+            await self.__write_product(product, operation="add")
         await self.__refresh_session(context)
         return ProtectedProductResult(
             context=context,
             info=self.__to_create_response(await self.__to_response(product)),
         )
+
+    async def __write_add_with_missing_labels(
+        self,
+        product: Product,
+        label_names: str,
+        uid: str,
+    ) -> Product:
+        requested_names = [name.strip() for name in label_names.split(",")]
+        committed = False
+        published = False
+        try:
+            async with self.__product_cache.products_lock() as product_lease:
+                await product_lease.ensure_held()
+                async with self.__label_cache.lock() as label_lease:
+                    await label_lease.ensure_held()
+                    await self.__product_cache.invalidate_products(product_lease)
+                    await self.__label_cache.invalidate(label_lease)
+                    async with self.__products.transaction() as connection:
+                        labels = await self.__labels.list_all_in_transaction(
+                            connection
+                        )
+                        labels_by_name = self.__labels_by_name(labels)
+                        now = self.__utc_now()
+                        for name in requested_names:
+                            normalized_name = (
+                                self.__label_cache.normalize_name(name)
+                            )
+                            if normalized_name in labels_by_name:
+                                continue
+                            label = await self.__labels.insert(
+                                Label(
+                                    id=0,
+                                    name=name,
+                                    created_uid=uid,
+                                    created_at=now,
+                                    updated_uid=uid,
+                                    updated_at=now,
+                                ),
+                                connection,
+                            )
+                            labels.append(label)
+                            labels_by_name[normalized_name] = label
+
+                        label_ids: list[int] = []
+                        for name in requested_names:
+                            label = labels_by_name.get(
+                                self.__label_cache.normalize_name(name)
+                            )
+                            if label is None:
+                                raise ProductLabelNotFoundError
+                            label_ids.append(label.id)
+
+                        product = replace(
+                            product,
+                            label_ids=",".join(
+                                str(label_id) for label_id in label_ids
+                            ),
+                        )
+                        await self.__products.insert(product, connection)
+                    committed = True
+
+                    labels = await self.__labels.list_all()
+                    await self.__label_cache.replace(labels, label_lease)
+                    cached_labels = await self.__label_cache.get()
+                    if cached_labels is None:
+                        raise LabelCacheRepositoryError
+                    cached_label_ids = self.__lookup_label_ids(
+                        requested_names,
+                        cached_labels,
+                    )
+                    if cached_label_ids != label_ids:
+                        raise LabelCacheRepositoryError
+
+                    await product_lease.ensure_held()
+                    await self.__replace_product_cache(
+                        product.id,
+                        "add",
+                        product_lease,
+                    )
+                    published = True
+        except DuplicateProductRecordError as error:
+            raise ProductConflictError from error
+        except ProductLabelNotFoundError:
+            raise
+        except ProductRepositoryError as error:
+            raise ServiceUnavailableError from error
+        except LabelRepositoryError as error:
+            raise ServiceUnavailableError from error
+        except (ProductCacheRepositoryError, LabelCacheRepositoryError) as error:
+            raise ProductCacheUnavailableError from error
+        finally:
+            if committed and not published:
+                await self.__invalidate_failed_add_publication(product.id)
+        return product
+
+    async def __invalidate_failed_add_publication(self, product_id: str) -> None:
+        try:
+            await self.__label_cache.invalidate_after_commit()
+        except LabelCacheRepositoryError:
+            LOGGER.exception(
+                "Label cache invalidation failed after add commit "
+                "product_id=%s",
+                product_id,
+            )
+        await self.__invalidate_failed_publication(product_id, "add")
 
     async def get(
         self,

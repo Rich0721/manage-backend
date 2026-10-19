@@ -101,14 +101,17 @@ class FakeLabelCache(object):
     async def lock(self):
         yield FakeLease()
 
-    async def get(self) -> dict[str, tuple[int, str]]:
+    async def get(self) -> dict[str, tuple[int, str]] | None:
         return self.labels
 
-    async def replace(self, labels: object, lease: object) -> None:
-        return None
+    async def replace(self, labels: list[Label], lease: object) -> None:
+        self.labels = {
+            label.name.strip().casefold(): (label.id, label.name)
+            for label in labels
+        }
 
     async def invalidate(self, lease: object) -> None:
-        return None
+        self.labels = {}
 
     @staticmethod
     def normalize_name(name: str) -> str:
@@ -433,32 +436,120 @@ async def test_update_and_delete_rebuild_the_full_product_cache() -> None:
 
 
 @pytest.mark.asyncio
-async def test_unknown_label_reloads_once_then_returns_expected_error() -> None:
+async def test_add_creates_unknown_label_and_resolves_it_from_cache() -> None:
     products = FakeProducts()
     cache = FakeProductCache()
+    labels = FakeLabels()
+    label_cache = FakeLabelCache()
     service = ProductService(
         object(),  # type: ignore[arg-type]
         products,  # type: ignore[arg-type]
         cache,  # type: ignore[arg-type]
-        FakeLabels(),  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
+        label_cache,  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    result = await service.add(
+        AuthorizationObject(uid="operator"),
+        ProductCreateInfo(
+            name="Product",
+            label_names=" New label ",
+            cost=Decimal("100.00"),
+            price=Decimal("150.00"),
+        ),
+    )
+
+    assert len(labels.values) == 1
+    assert labels.values[0].name == "New label"
+    assert labels.values[0].created_uid == "operator"
+    assert labels.values[0].updated_uid == "operator"
+    assert products.values[0].label_ids == str(labels.values[0].id)
+    assert label_cache.labels["new label"] == (
+        labels.values[0].id,
+        "New label",
+    )
+    assert cache.products == products.values
+    assert result.info.label_names == "New label"
+
+
+@pytest.mark.asyncio
+async def test_add_creates_only_missing_labels_and_preserves_input_order() -> None:
+    products = FakeProducts()
+    cache = FakeProductCache()
+    labels = FakeLabels()
+    seed_time = datetime(2026, 1, 1)
+    labels.values = [
+        Label(1, "Label1", "seed", seed_time, "seed", seed_time),
+        Label(2, "Label2", "seed", seed_time, "seed", seed_time),
+    ]
+    label_cache = FakeLabelCache()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        cache,  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
+        label_cache,  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    await service.add(
+        AuthorizationObject(uid="operator"),
+        ProductCreateInfo(
+            name="Product",
+            label_names="LABEL1, New label, label2",
+            cost=Decimal("100.00"),
+            price=Decimal("150.00"),
+        ),
+    )
+
+    assert len(labels.values) == 3
+    assert labels.values[-1].name == "New label"
+    assert products.values[0].label_ids == f"1,{labels.values[-1].id},2"
+
+
+@pytest.mark.asyncio
+async def test_update_does_not_create_unknown_labels() -> None:
+    product = Product(
+        id="1790705105001",
+        name="Product",
+        label_ids="1",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+        delete_flag=False,
+        created_uid="creator",
+        created_at=datetime(2026, 1, 1),
+        updated_uid="updater",
+        updated_at=datetime(2026, 1, 2),
+    )
+    products = FakeProducts()
+    products.values = [product]
+    labels = FakeLabels()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        FakeProductCache([product]),  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
         FakeLabelCache(),  # type: ignore[arg-type]
         FakeUsers(),  # type: ignore[arg-type]
         FakeAuthorization(),  # type: ignore[arg-type]
     )
 
     with pytest.raises(ProductLabelNotFoundError):
-        await service.add(
+        await service.update(
             AuthorizationObject(uid="operator"),
-            ProductCreateInfo(
-                name="Product",
+            ProductUpdateInfo(
+                id=product.id,
+                name="Updated",
                 label_names="missing",
                 cost=Decimal("100.00"),
                 price=Decimal("150.00"),
             ),
         )
 
-    assert products.values == []
-    assert cache.products is None
+    assert labels.values == []
 
 
 @pytest.mark.asyncio

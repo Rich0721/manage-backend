@@ -19,6 +19,7 @@ from src.models.po.label import Label
 from src.models.po.product import Product
 from src.models.po.user import UserPO
 from src.models.schemas.authorization import AuthorizationObject
+from src.models.schemas.product import ProductCreateInfo
 from src.models.schemas.product import ProductDownloadInfo
 from src.repositories.product_cache_repository import ProductCacheRepository
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
@@ -26,7 +27,9 @@ from src.repositories.label_cache_repository import LabelCacheRepository
 from src.repositories.label_cache_repository import LabelCacheRepositoryError
 from src.repositories.label_repository import LabelRepository
 from src.repositories.product_repository import ProductRepository
+from src.repositories.product_repository import ProductRepositoryError
 from src.services.authorization_service import AuthorizationContext
+from src.services.errors import ServiceUnavailableError
 from src.services.product_errors import ProductCacheUnavailableError
 from src.services.product_errors import ProductNotFoundError
 from src.services.product_service import ProductService
@@ -608,6 +611,154 @@ async def test_post_commit_label_cache_failure_invalidates_both_caches(
                 AuthorizationObject(uid="integration-user"),
                 "products.xlsx",
                 create_add_workbook("Committed product", "New label"),
+            )
+
+        assert len(await products.list_all()) == 1
+        assert len(await labels.list_all()) == 1
+        assert await product_cache.get_products() is None
+        assert await label_cache.get() is None
+    finally:
+        await client.delete(
+            f"test:{prefix}:products:info",
+            f"test:{prefix}:products:info:version",
+            f"test:{prefix}:products:info:lock",
+            f"test:{prefix}:product:labels",
+            f"test:{prefix}:product:labels:version",
+            f"test:{prefix}:product:labels:lock",
+        )
+        await client.aclose()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    DATABASE_URL is None or REDIS_URL is None,
+    reason="Integration PostgreSQL and Redis URLs are not configured",
+)
+async def test_add_product_creates_missing_label_and_refreshes_both_caches() -> None:
+    connection = await AsyncConnection.connect(DATABASE_URL)
+    client = Redis.from_url(REDIS_URL, decode_responses=True)
+    prefix = uuid4().hex
+    service, products, labels, product_cache, label_cache = (
+        create_integration_product_service(connection, client, prefix)
+    )
+    try:
+        await create_temp_product_tables(connection)
+        result = await service.add(
+            AuthorizationObject(uid="integration-user"),
+            ProductCreateInfo(
+                name="Created with label",
+                label_names=" New label ",
+                cost=Decimal("10.00"),
+                price=Decimal("20.00"),
+                stock=3,
+            ),
+        )
+
+        stored_labels = await labels.list_all()
+        stored_products = await products.list_all()
+        assert len(stored_labels) == 1
+        assert stored_labels[0].name == "New label"
+        assert stored_labels[0].created_uid == "integration-user"
+        assert len(stored_products) == 1
+        assert stored_products[0].label_ids == str(stored_labels[0].id)
+        assert await label_cache.get() == {
+            "new label": (stored_labels[0].id, "New label")
+        }
+        assert await product_cache.get_products() == stored_products
+        assert result.info.label_names == "New label"
+    finally:
+        await client.delete(
+            f"test:{prefix}:products:info",
+            f"test:{prefix}:products:info:version",
+            f"test:{prefix}:products:info:lock",
+            f"test:{prefix}:product:labels",
+            f"test:{prefix}:product:labels:version",
+            f"test:{prefix}:product:labels:lock",
+        )
+        await client.aclose()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    DATABASE_URL is None or REDIS_URL is None,
+    reason="Integration PostgreSQL and Redis URLs are not configured",
+)
+async def test_add_product_failure_rolls_back_new_label(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = await AsyncConnection.connect(DATABASE_URL)
+    client = Redis.from_url(REDIS_URL, decode_responses=True)
+    prefix = uuid4().hex
+    service, products, labels, product_cache, label_cache = (
+        create_integration_product_service(connection, client, prefix)
+    )
+
+    async def fail_insert(*args: object, **kwargs: object) -> object:
+        raise ProductRepositoryError("injected product insert failure")
+
+    monkeypatch.setattr(products, "insert", fail_insert)
+    try:
+        await create_temp_product_tables(connection)
+        with pytest.raises(ServiceUnavailableError):
+            await service.add(
+                AuthorizationObject(uid="integration-user"),
+                ProductCreateInfo(
+                    name="Must roll back",
+                    label_names="New label",
+                    cost=Decimal("10.00"),
+                    price=Decimal("20.00"),
+                    stock=3,
+                ),
+            )
+
+        assert await labels.list_all() == []
+        assert await products.list_all() == []
+    finally:
+        await client.delete(
+            f"test:{prefix}:products:info",
+            f"test:{prefix}:products:info:version",
+            f"test:{prefix}:products:info:lock",
+            f"test:{prefix}:product:labels",
+            f"test:{prefix}:product:labels:version",
+            f"test:{prefix}:product:labels:lock",
+        )
+        await client.aclose()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    DATABASE_URL is None or REDIS_URL is None,
+    reason="Integration PostgreSQL and Redis URLs are not configured",
+)
+async def test_add_product_label_cache_failure_keeps_committed_rows_and_invalidates_caches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = await AsyncConnection.connect(DATABASE_URL)
+    client = Redis.from_url(REDIS_URL, decode_responses=True)
+    prefix = uuid4().hex
+    service, products, labels, product_cache, label_cache = (
+        create_integration_product_service(connection, client, prefix)
+    )
+
+    async def fail_replace(*args: object, **kwargs: object) -> None:
+        raise LabelCacheRepositoryError("injected label cache write failure")
+
+    monkeypatch.setattr(label_cache, "replace", fail_replace)
+    try:
+        await create_temp_product_tables(connection)
+        with pytest.raises(ProductCacheUnavailableError):
+            await service.add(
+                AuthorizationObject(uid="integration-user"),
+                ProductCreateInfo(
+                    name="Committed product",
+                    label_names="New label",
+                    cost=Decimal("10.00"),
+                    price=Decimal("20.00"),
+                    stock=3,
+                ),
             )
 
         assert len(await products.list_all()) == 1
