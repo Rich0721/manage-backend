@@ -95,23 +95,33 @@ Feature: 新增產品
       And 回應狀態碼應為 200
       And Redis 中的 "products:info" 應包含新增的產品
 
-
-    Scenario: 重新載入標籤後仍找不到指定標籤時新增產品失敗
+    Scenario: tb_labels 中不存在標籤時新增標籤後成功新增產品
       Given UID 為 "user-001" 的使用者具有有效的 Authorization
       And 該使用者具有新增產品的權限
-      And Redis 中的 "product:labels" 不包含 "unknown-label"
-      And "tb_labels" 中不存在名稱為 "unknown-label" 的標籤
+      And Redis 中的 "product:labels" 不包含 "new-label"
+      And "tb_labels" 存在以下標籤
+        | id | name   |
+        | 1  | label1 |
+        | 2  | label2 |
       And 使用者輸入以下產品資訊
         | name         | label_names  | cost | price | stock |
-        | test product | unknown-label | 100 | 150   | 0 |
+        | test product2 | new-label    | 100  | 150   | 5     |
+      And "tb_products" 存在以下資訊
+        | id            | name         | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
+        | 1710000000123 | test product | 1,2     | 100  | 150   | 5     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-01 12:00:00 |
       When 使用者提交新增產品請求
-      Then 系統應重新載入 "product:labels"
-      And 系統應拒絕新增產品
-      And 回應狀態碼應為 400
-      And 回應訊息應為 "Product label does not exist"
-      And 系統不應新增資料至 "tb_products"
-      And 系統不應更新 Redis 中的 "products:info"
-
+      Then "tb_labels"應更新成以下標籤
+        | id | name   |
+        | 1  | label1 |
+        | 2  | label2 |
+        | 5  | new-label |
+      And 系統應從 "tb_labels" 載入標籤資料至 Redis 中的 "product:labels"
+      And "tb_products" 應更新成以下資訊
+        | id            | name         | label_ids | cost | price | stock | created_uid | created_at          | updated_uid | updated_at          |
+        | 1710000000123 | test product | 1,2       | 100  | 150   | 5     | user-001    | 2024-04-01 12:00:00 | user-001    | 2024-04-01 12:00:00 |
+        | 1710000000124 | test product2 | 5         | 100  | 150   | 5     | user-001    | 2024-06-01 12:00:00 | user-001    | 2024-06-01 12:00:00 |
+      And 回應狀態碼應為 200
+      And Redis 中的 "products:info" 應包含新增的產品
 
   Rule: 成功建立產品
 

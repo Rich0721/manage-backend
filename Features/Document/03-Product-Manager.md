@@ -62,7 +62,7 @@ uri: /productController/addProduct
 2. Lable_names必須先透過","切割成陣列後，先查詢Redis中`product:labels`的對應ID，並將ID join成字串(例如: "1,2,3")，存入`label_ids`欄位。
 - 如果`product:labels`Key不存在，則需要先從`tb_labels`表中載入標籤資料到Redis中，然後再進行查詢。
 - 如果Redis中`product:labels`查詢不到對應的ID，則需要先清空Redis中的`product:labels`，然後重新從`tb_labels`表中載入標籤資料到Redis中，再進行查詢。
-- 如果Redis重新載入標籤後仍找不到對應的ID，則新增產品將失敗，並返回錯誤訊息。
+- 如果Redis重新載入標籤後仍找不到對應的ID，於`tb_labels`表中新增對應的標籤資料後，需再次從Redis中查詢對應的ID，並更新`label_ids`欄位。
 3. Product的ID使用Unix Timestamp生成，並且取得當前時間的毫秒數作為唯一標識。
 4. 新增產品時，系統應自動記錄創建用戶和創建時間，更新產品時，系統應自動記錄更新用戶和更新時間。
 5. 當完成產品的新增或更新操作後，系統應更新Redis中的`products:info`，以確保緩存中的產品資訊與資料庫保持一致。
