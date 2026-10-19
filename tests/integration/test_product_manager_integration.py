@@ -402,9 +402,9 @@ async def test_batch_products_commits_and_downloads_real_workbook(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    prefix = uuid4().hex
     connection = await AsyncConnection.connect(DATABASE_URL)
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    prefix = uuid4().hex
     service, products, labels, product_cache, label_cache = (
         create_integration_product_service(connection, client, prefix)
     )
@@ -601,9 +601,9 @@ async def test_post_commit_label_cache_failure_invalidates_both_caches(
     reason="Integration PostgreSQL and Redis URLs are not configured",
 )
 async def test_add_product_creates_missing_label_and_refreshes_both_caches() -> None:
+    prefix = uuid4().hex
     connection = await AsyncConnection.connect(DATABASE_URL)
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    prefix = uuid4().hex
     service, products, labels, product_cache, label_cache = (
         create_integration_product_service(connection, client, prefix)
     )
@@ -630,7 +630,13 @@ async def test_add_product_creates_missing_label_and_refreshes_both_caches() -> 
         assert await label_cache.get() == {
             "new label": (stored_labels[0].id, "New label")
         }
-        assert await product_cache.get_products() == stored_products
+        cached_products = await product_cache.get_products()
+        assert cached_products is not None
+        assert len(cached_products) == len(stored_products)
+        assert cached_products[0].id == stored_products[0].id
+        assert cached_products[0].label_ids == stored_products[0].label_ids
+        assert cached_products[0].stock == stored_products[0].stock
+        assert cached_products[0].label_names == ("New label",)
         assert result.info.label_names == "New label"
     finally:
         await client.delete(
@@ -653,9 +659,10 @@ async def test_add_product_creates_missing_label_and_refreshes_both_caches() -> 
 async def test_add_product_failure_rolls_back_new_label(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    prefix = uuid4().hex
+    schema = f"product_test_{prefix}"
     connection = await AsyncConnection.connect(DATABASE_URL)
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    prefix = uuid4().hex
     service, products, labels, product_cache, label_cache = (
         create_integration_product_service(connection, client, prefix)
     )
@@ -701,9 +708,10 @@ async def test_add_product_failure_rolls_back_new_label(
 async def test_add_product_id_conflict_rolls_back_new_label(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    prefix = uuid4().hex
+    schema = f"product_test_{prefix}"
     connection = await AsyncConnection.connect(DATABASE_URL)
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    prefix = uuid4().hex
     service, products, labels, product_cache, label_cache = (
         create_integration_product_service(connection, client, prefix)
     )
@@ -766,9 +774,9 @@ async def test_add_product_id_conflict_rolls_back_new_label(
 async def test_add_product_label_cache_failure_keeps_committed_rows_and_invalidates_caches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    prefix = uuid4().hex
     connection = await AsyncConnection.connect(DATABASE_URL)
     client = Redis.from_url(REDIS_URL, decode_responses=True)
-    prefix = uuid4().hex
     service, products, labels, product_cache, label_cache = (
         create_integration_product_service(connection, client, prefix)
     )

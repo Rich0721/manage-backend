@@ -78,6 +78,20 @@ Status: RESOLVED
 
 結論：Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。
 
+## 2026-10-19 Docker 整合測試複審
+
+```text
+Status: OPEN
+```
+
+- **P1／真實 DB 提交後快取失敗情境未驗證：** `test_add_product_label_cache_failure_keeps_committed_rows_and_invalidates_caches` 使用 PostgreSQL `TEMP TABLE`，但此測試的 `DirectConnectionPool` 固定重用原始連線，交易結束後 `list_all()` 仍未讀到新增資料（0 筆）；因此該斷言無法證明 DB commit 後資料保留。需要使用符合 Windows selector loop 的測試 pool／schema 設定，或以其他方式在獨立連線可見的隔離 schema 中驗證提交結果。
+- **P2／快取 snapshot 比較漏掉衍生欄位：** `test_add_product_creates_missing_label_and_refreshes_both_caches` 將 Redis 解碼後含 `label_names` 的 ProductPO 與 DB `list_all()` 回傳的 `label_names=None` 物件直接比較。產品快取依計畫應包含 label 名稱；請將斷言改為比較 DB 欄位並分別驗證快取衍生標籤名稱。
+- Windows host 測試的 PostgreSQL URL 設為 `localhost` 時，psycopg async 連線停滯；使用相同服務的 `127.0.0.1` 可以連線。README 目前 instruction 建議先載入 `.env` 全部變數，而 `.env.example` 已提供 INTEGRATION_DATABASE_URL／INTEGRATION_REDIS_URL，之後將驗證文件建議的載入方式。
+
+真實 PostgreSQL 17／Redis 8 目標服務可用；以 `127.0.0.1` 執行產品與使用者整合測試第一次得到 `14 passed, 2 failed`（一項為快取衍生欄位斷言，已修正；另一項為 TEMP TABLE 提交結果不可驗證）。修正快取斷言後，針對 Redis fencing 與 Add cache-refresh 的測試為 `2 passed`；完整整合測試的 Redis fencing 假失敗亦已由恢復 `dataclasses.replace` import 修正。完整 pytest 未載入整合 URL 為 `290 passed, 16 skipped`。
+
+結論：Review Status 為 `OPEN`；TASK-009 標記 `REVIEW FIX`。
+
 ## 2026-10-19 新增商品標籤缺漏修訂審查
 
 ```text
