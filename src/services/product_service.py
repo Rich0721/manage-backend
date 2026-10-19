@@ -215,6 +215,12 @@ class ProductService(object):
             raise ProductCacheUnavailableError from error
         finally:
             if committed and not published:
+                LOGGER.error(
+                    "Product add committed before cache publication failed "
+                    "product_id=%s operation=add",
+                    product.id,
+                    exc_info=True,
+                )
                 await self.__invalidate_failed_add_publication(product.id)
         return product
 

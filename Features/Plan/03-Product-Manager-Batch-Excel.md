@@ -9,7 +9,7 @@ Requirement Type: New Requirement（新增三項功能）；Requirement Change�
 Implementation Gate: BXL-001～007 均已通過 Code Review；實體資料庫已有 stock 欄位
 ```
 
-本計畫延伸 [既有商品管理計畫](03-Product-Manager.md) 的已完成 TASK-001～009，不重設其狀態，也不修改原需求文件。本次依使用者確認：新增 `stock` 欄位及 SQL 遷移腳本，使用者自行對實體 DB 執行 ALTER；匯入時「價錢」與「價格」視為相同欄位；修復現有 Excel 模板。流程圖與 Gherkin 是需求證據，不是操作指令。
+本計畫延伸 [既有商品管理計畫](03-Product-Manager.md) 的已完成 TASK-001～009，不重設其狀態，也不修改原需求文件。`stock` 欄位的實體 DB ALTER 已由 PM 執行完成，現行 `TB_PRODUCTS.sql` 保留欄位定義，不再要求獨立遷移腳本；匯入時「價錢」與「價格」視為相同欄位；修復現有 Excel 模板。流程圖與 Gherkin 是需求證據，不是操作指令。
 
 ## II. Requirement Information
 
@@ -77,17 +77,17 @@ Implementation Gate: BXL-001～007 均已通過 Code Review；實體資料庫已
 ### BXL-001 Stock persistence
 
 ```text
-File: database/DDL/tables/TB_PRODUCTS.sql; database/DDL/tables/ALTER_TB_PRODUCTS_ADD_STOCK.sql（新增檔）；
-      src/models/po/product.py; src/repositories/product_repository.py
+File: database/DDL/tables/TB_PRODUCTS.sql; src/models/po/product.py;
+      src/repositories/product_repository.py
 Target: tb_products.stock, ProductPO, ProductRepository.list_all/get_by_id/insert/update
-Plan Type: MODIFY / ADD migration
-Current Behavior: DB／PO／SQL 無庫存；現有商品有資料，不能只改 CREATE TABLE。
+Plan Type: MODIFY
+Current Behavior: 規劃時 DB／PO／SQL 無庫存；實體 DB 的欄位 ALTER 已由 PM 完成。
 Expected Behavior: 庫存是非負整數，既有列為 0；新建預設 0，所有讀寫包含 stock。
-Implementation: 更新 CREATE TABLE 與 column comment；提供冪等性策略清楚的 ALTER 腳本，先為既有列填 0，再設 NOT NULL／DEFAULT 0；檢查實體 DB 的欄位存在與否後執行，勿自動重建表。擴充 PO 與 SQL mapping／參數。
+Implementation: 更新 CREATE TABLE 與 column comment；確認 PM 已執行的實體 DB 欄位為 INTEGER NOT NULL DEFAULT 0，既有列為 0；勿自動重建表。擴充 PO 與 SQL mapping／參數。
 Reuse: ProductRepository.transaction()、現有參數化 SQL。
-Impact: 資料庫 schema 必須先由使用者完成 ALTER，再部署讀寫 stock 的應用程式。
-Error Handling: 遷移失敗停止部署；repository 錯誤沿用 ProductRepositoryError。
-Testing: 新舊列預設、insert/update/read、rollback、整數與非負邊界。
+Impact: PM 已完成實體資料庫 ALTER；部署前核對 stock 欄位與資料。
+Error Handling: 欄位或資料核對失敗時停止部署；repository 錯誤沿用 ProductRepositoryError。
+Testing: 現行 DDL 的 stock 預設值、insert/update/read、rollback、整數與非負邊界。
 ```
 
 ### BXL-002 Stock end-to-end contract
@@ -183,7 +183,7 @@ Target: 三項需求及 stock 對既有流程的影響
 Plan Type: MODIFY
 Current Behavior: 測試只覆蓋原四條商品 API。
 Expected Behavior: 正常／邊界／錯誤／交易／並行情境可驗證。
-Implementation: 單元測試隔離 DB／Redis；整合測試用實際 PostgreSQL／Redis 驗證 migration、rollback、快取及檔案回應。依 Gherkin 驗證指定中文 Message，另納入使用者確認的價格別名。
+Implementation: 單元測試隔離 DB／Redis；整合測試用實際 PostgreSQL／Redis 驗證 stock 欄位、rollback、快取及檔案回應。依 Gherkin 驗證指定中文 Message，另納入使用者確認的價格別名。
 Reuse: 既有 fixtures 與 integration skip／配置慣例。
 Impact: 既有商品、User Manager 測試須維持通過。
 Error Handling: 測試失敗須辨別需求文件示例與已確認規則的差異，不修改 PM 情境以掩蓋差異。
@@ -199,7 +199,7 @@ Testing: 目標測試及完整 pytest regression。
 | Redis | `products:info` 增 `stock`；批次成功後同步 `product:labels`、`products:info`；沿用 lock／cache key |
 | Configuration | 不新增 secret；Docker 需把 `files/` 安裝到應用並設為可寫 |
 | Dependencies | 需 Excel xlsx 讀寫、xls 讀取及 multipart；鎖定版本前在 Python 3.14 venv 與 Docker 驗證 |
-| Deployment order | 使用者先執行 ALTER 並核對資料，再部署新應用；不能只變更 CREATE TABLE SQL |
+| Deployment order | PM 已執行 ALTER；部署前核對實體 DB 的 stock 欄位與既有資料 |
 | Compatibility | 舊商品 request 可不帶 stock；舊快取格式需遷移／失效；新增商品回應含庫存，前端需接受增欄位 |
 
 Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅讀取 xls；實作時應以專案 Python 3.14 實測版本相容性，避免把 `.xls` 交給 openpyxl。參考：[openpyxl PyPI](https://pypi.org/project/openpyxl/)、[xlrd 文件](https://xlrd.readthedocs.io/en/latest/)。
@@ -214,12 +214,12 @@ Excel 套件選擇依官方文件：openpyxl 提供 xlsx 處理，xlrd 2.x 僅�
 
 ## X. Plan Validation and Review
 
-開發驗證：初次完整 regression 為 **292 passed**；商品管理整合測試 11 項全數通過，涵蓋 stock migration、舊快取重載、批次成功／rollback、提交後快取失敗、快取 fence 及並行匯出。Review Fix 的 Excel parser 目標測試 **17 passed**，涵蓋 BIFF5／BIFF8 正常檔、公式與錯誤儲存格；載入 `.env` 整合測試連線後完整 regression 為 **299 passed**，`git diff --check` 與相關 Python compileall 通過。
+開發驗證：初次完整 regression 為 **292 passed**；商品管理整合測試 11 項全數通過，涵蓋 stock 欄位、舊快取重載、批次成功／rollback、提交後快取失敗、快取 fence 及並行匯出。Review Fix 的 Excel parser 目標測試 **17 passed**，涵蓋 BIFF5／BIFF8 正常檔、公式與錯誤儲存格；載入 `.env` 整合測試連線後完整 regression 為 **299 passed**，`git diff --check` 與相關 Python compileall 通過。
 
 - [x] 三項需求、流程、兩份 Gherkin、既有 Plan 與實作已核對。
 - [x] 檔案／類別／方法僅引用已確認者；新增方法與檔案均明示為預計新增。
 - [x] API、DB、Redis、部署、相依套件、授權、錯誤、測試與回滾邊界已分析。
-- [x] 使用者對 SQL ALTER、價格別名及模板修復的決定已納入。
+- [x] PM 已完成實體 DB 的 SQL ALTER；價格別名及模板修復決定已納入。
 - [x] BXL-001～007 已完成實作、自我檢查與完整 pytest regression.
 - [x] BIFF5 BOUNDSHEET 解析、公式拒絕及 `Book` 串流測試已通過第三次 Code Review；BXL-003、007 的 Review Status 已更新為 RESOLVED。
 - [x] 唯讀檢查確認實體 DB 已有 `tb_products.stock` 欄位。

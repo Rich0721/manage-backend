@@ -42,3 +42,7 @@ Status: RESOLVED
 ## 2026-09-30 再複審
 
 已補上 insert 參數化與重複 ID、資料庫例外轉譯、transaction rollback，以及標籤查詢例外測試；前次 review 問題已解決。真實 PostgreSQL 交易驗證仍由 TASK-009 整合測試追蹤。
+
+## 2026-10-19 新增商品標籤缺漏修訂審查
+
+`LabelRepository.insert()` 使用產品 repository 交易連線並回傳 identity ID；新增商品在同一 transaction 寫入缺少的標籤及產品。標籤名稱在產品與標籤快取鎖內重新讀取後判斷，原有同名資料不重複建立。此 Task 通過，Status: RESOLVED；同名併發測試缺口另見 TASK-009。

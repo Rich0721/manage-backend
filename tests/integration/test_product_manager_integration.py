@@ -31,6 +31,7 @@ from src.repositories.product_repository import ProductRepositoryError
 from src.services.authorization_service import AuthorizationContext
 from src.services.errors import ServiceUnavailableError
 from src.services.product_errors import ProductCacheUnavailableError
+from src.services.product_errors import ProductConflictError
 from src.services.product_errors import ProductNotFoundError
 from src.services.product_service import ProductService
 
@@ -147,9 +148,6 @@ DATABASE_URL = os.getenv("INTEGRATION_DATABASE_URL")
 REDIS_URL = os.getenv("INTEGRATION_REDIS_URL")
 LABEL_DDL_PATH = Path("database/DDL/tables/TB_LABELS.sql")
 PRODUCT_DDL_PATH = Path("database/DDL/tables/TB_PRODUCTS.sql")
-PRODUCT_STOCK_MIGRATION_PATH = Path(
-    "database/DDL/tables/ALTER_TB_PRODUCTS_ADD_STOCK.sql"
-)
 
 
 @pytest.mark.asyncio
@@ -202,44 +200,11 @@ async def test_product_and_label_ddl_support_soft_deleted_products() -> None:
             ),
         )
         cursor = await connection.execute(
-            "SELECT delete_flag FROM tb_products WHERE id = %s",
+            "SELECT delete_flag, stock FROM tb_products WHERE id = %s",
             ("1790705105001",),
         )
         row = await cursor.fetchone()
-        assert row == (True,)
-    finally:
-        await connection.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.skipif(
-    DATABASE_URL is None,
-    reason="INTEGRATION_DATABASE_URL is not configured",
-)
-async def test_stock_migration_updates_existing_and_new_rows() -> None:
-    connection = await AsyncConnection.connect(DATABASE_URL)
-    try:
-        await connection.execute(
-            "CREATE TEMP TABLE tb_products (id VARCHAR(13) PRIMARY KEY)"
-        )
-        await connection.execute(
-            "INSERT INTO tb_products (id) VALUES (%s)",
-            ("1790705105001",),
-        )
-        await connection.commit()
-
-        migration = PRODUCT_STOCK_MIGRATION_PATH.read_text(encoding="utf-8")
-        await connection.execute(migration)
-        await connection.execute(migration)
-        await connection.execute(
-            "INSERT INTO tb_products (id) VALUES (%s)",
-            ("1790705105002",),
-        )
-        cursor = await connection.execute(
-            "SELECT stock FROM tb_products ORDER BY id"
-        )
-
-        assert await cursor.fetchall() == [(0,), (0,)]
+        assert row == (True, 0)
     finally:
         await connection.close()
 
@@ -715,6 +680,71 @@ async def test_add_product_failure_rolls_back_new_label(
 
         assert await labels.list_all() == []
         assert await products.list_all() == []
+    finally:
+        await client.delete(
+            f"test:{prefix}:products:info",
+            f"test:{prefix}:products:info:version",
+            f"test:{prefix}:products:info:lock",
+            f"test:{prefix}:product:labels",
+            f"test:{prefix}:product:labels:version",
+            f"test:{prefix}:product:labels:lock",
+        )
+        await client.aclose()
+        await connection.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    DATABASE_URL is None or REDIS_URL is None,
+    reason="Integration PostgreSQL and Redis URLs are not configured",
+)
+async def test_add_product_id_conflict_rolls_back_new_label(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = await AsyncConnection.connect(DATABASE_URL)
+    client = Redis.from_url(REDIS_URL, decode_responses=True)
+    prefix = uuid4().hex
+    service, products, labels, product_cache, label_cache = (
+        create_integration_product_service(connection, client, prefix)
+    )
+    product_id = "1790705105001"
+    monkeypatch.setattr(
+        "src.services.product_service.time.time_ns",
+        lambda: int(product_id) * 1_000_000,
+    )
+    try:
+        await create_temp_product_tables(connection)
+        now = datetime(2026, 1, 1)
+        original = Product(
+            id=product_id,
+            name="Existing",
+            label_ids="",
+            cost=Decimal("10.00"),
+            price=Decimal("20.00"),
+            stock=3,
+            delete_flag=False,
+            created_uid="seed",
+            created_at=now,
+            updated_uid="seed",
+            updated_at=now,
+        )
+        async with products.transaction() as transaction:
+            await products.insert(original, transaction)
+
+        with pytest.raises(ProductConflictError):
+            await service.add(
+                AuthorizationObject(uid="integration-user"),
+                ProductCreateInfo(
+                    name="Conflicting product",
+                    label_names="New label",
+                    cost=Decimal("10.00"),
+                    price=Decimal("20.00"),
+                    stock=3,
+                ),
+            )
+
+        assert await labels.list_all() == []
+        assert await products.list_all() == [original]
     finally:
         await client.delete(
             f"test:{prefix}:products:info",

@@ -5,7 +5,7 @@
 ## 新增商品標籤缺漏修訂計畫（2026-10-19）
 
 ```text
-Plan Status: Awaiting Review
+Plan Status: Review Completed
 Requirement Type: Requirement Change
 Implementation Scope: 僅新增商品時，標籤快取與 tb_labels 均無指定名稱的處理
 Requirement: Features/Document/03-Product-Manager.md §2-1-6 第 2 點；Scenarios/03-Product-Manager/Add_Product.feature「tb_labels 中不存在標籤時新增標籤後成功新增產品」
@@ -37,7 +37,7 @@ Requirement: Features/Document/03-Product-Manager.md §2-1-6 第 2 點；Scenari
 | TASK-006 | `src/services/product_service.py` 的 `add()`、`__write_product()` 相關新增路徑 | MODIFY | 調整標籤與產品交易及快取發布順序，保留產品 ID 衝突 409、授權、稽核與 `products:info` 完整快照規則。 |
 | TASK-009 | `tests/services/test_product_service.py`、`tests/repositories/test_label_repository.py`、`tests/integration/test_product_manager_integration.py` | MODIFY | 覆蓋單一／多個缺漏標籤、混合既有標籤、名稱大小寫／空白、同名併發、DB rollback、commit 後 Redis 故障與 Add Gherkin 既有產品不變且新產品 `label_ids="5"`；回歸原有標籤命中及更新產品測試。 |
 
-上述四個 Task 的 Implementation Status 為 `PLAN UPDATED`，原 Development Date／Code Review Date 對本修訂不再適用；舊版完成紀錄由 Git 歷史保留。TASK-004 的標籤快取 lock／replace／invalidate 可重用，無需修改其既有狀態。此修訂待 PM／Reviewer 審閱後交由 Programmer；其餘 Task 狀態不變。
+上述四個 Task 的舊版完成紀錄由 Git 歷史保留。TASK-004 的標籤快取 lock／replace／invalidate 可重用，無需修改其既有狀態。2026-10-19 初次完整 pytest 為 **288 passed、15 skipped**；Review Fix 後為 **290 passed、16 skipped**。略過項目為未設定整合服務 URL 的測試，沒有實際 PostgreSQL／Redis 執行通過的證據。TASK-003／005／006／009 均已通過 Code Review 並標記 `DONE`；其餘 Task 狀態不變。
 
 > 2026-10-01 契約修訂：產品 request 仍由實際 HTTP `Uid`／`Authorization` headers 授權；response 的 `Status`、`Message` 及適用的 `Uid`、`Authorization` 也放在實際 HTTP Header，JSON `body` 僅保留 `info`。本文舊有 `body.auth` 描述由 [Authorization Header Contract Change Implementation Plan](01-Authorization-Header-Change.md) 覆蓋；請依 HDR-001、HDR-003、HDR-004 遷移。下列受影響 Task 狀態已重設，原完成日期留存於 Git 歷史。
 
@@ -186,13 +186,13 @@ Controller 只解析 HTTP、呼叫 Service 與序列化回應；Service 處理�
 |---|---|---|---|---|---|---|
 | TASK-001 | Product / Label DDL and PO | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-002 | Product API schemas, constants and errors | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
-| TASK-003 | PostgreSQL product and label repositories | MODIFY | 2026-10-19 | PLAN UPDATED |  |  |
+| TASK-003 | PostgreSQL product and label repositories | MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 | TASK-004 | Redis label and product cache repositories | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
-| TASK-005 | Product authorization and label resolution | MODIFY | 2026-10-19 | PLAN UPDATED |  |  |
-| TASK-006 | Add and get products | MODIFY | 2026-10-19 | PLAN UPDATED |  |  |
+| TASK-005 | Product authorization and label resolution | MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
+| TASK-006 | Add and get products | MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 | TASK-007 | Update and soft delete products | ADD | 2026-09-30 | DONE | 2026-09-30 | 2026-09-30 |
 | TASK-008 | Product routes and dependency wiring | MODIFY | 2026-10-08 | DONE | 2026-10-08 | 2026-10-08 |
-| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-19 | PLAN UPDATED |  |  |
+| TASK-009 | Unit, API and integration coverage | MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 
 原 `ADD` 工作的完成紀錄留在本表；2026-10-01 標為 `MODIFY`／`DONE` 的 Task 僅處理 Header 契約遷移，實作與 Code Review 均已完成，規格依 `01-Authorization-Header-Change.md`。先前複審紀錄保留於 `Features/Review/03-Product-Manager/`。
 

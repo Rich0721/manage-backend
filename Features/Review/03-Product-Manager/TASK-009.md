@@ -77,3 +77,28 @@ Status: RESOLVED
 - 使用專案 `.venv` 與 `.env` 中的整合連線執行 `python -m pytest -q`：254 passed、0 skipped、1 個 Starlette deprecation warning；整合測試實際執行，無 skip。
 
 結論：Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。
+
+## 2026-10-19 新增商品標籤缺漏修訂審查
+
+```text
+Status: OPEN
+```
+
+- **P1／同名併發未驗證：** 最新計畫第 38 行明列「同名併發」。`tests/services/test_product_service.py:438-510` 只驗證單次新增與混合既有標籤；`tests/integration/test_product_manager_integration.py:602-742` 的新 Add 測試亦只驗證單次成功、rollback 與快取故障，沒有兩個同名 Add 並行後只建立一筆標籤的斷言。請補足兩個請求交錯的回歸驗證，確認標籤及產品交易與快取結果。
+- **P2／新增路徑 ID 衝突未驗證：** 最新計畫第 37 行要求保留產品 ID 衝突 409。新缺漏標籤路徑在 `src/services/product_service.py:143-185` 先插標籤再插產品，產品重複 ID 時須 rollback 標籤且回 409；現有新增測試以一般 DB 失敗模擬 rollback（整合測試第 652-681 行），沒有此衝突案例。請驗證新路徑的 409 與標籤 rollback。
+
+完整 pytest 結果為 288 passed、15 skipped；整合測試因未設定 PostgreSQL／Redis URL 而略過，本輪無真實服務驗收證據。`Features/Plan/03-Product-Manager-Batch-Excel.md` 與兩個 DDL 測試移除獨立 stock 遷移腳本依賴，符合 PM 已完成 ALTER 的現況；未見相關新問題。
+
+結論：Review Status 為 `OPEN`；TASK-009 標記 `REVIEW FIX`。
+
+## 2026-10-19 修正複審
+
+```text
+Status: RESOLVED
+```
+
+- `tests/services/test_product_service.py:518-594` 以兩個並行 Add 從相同舊標籤快照起跑，驗證僅一筆同名標籤、兩筆產品共用其 ID，且產品快取包含兩筆資料。原 P1 已解決。
+- `tests/integration/test_product_manager_integration.py:696-757` 以重複產品 ID 觸發新標籤路徑衝突，斷言 `ProductConflictError`、新增標籤 rollback 及原產品不變。原 P2 已解決。
+- 本輪針對性測試為 `21 passed, 14 skipped`；完整 pytest 由 Programmer 回報 `290 passed, 16 skipped`。整合測試因未設定 PostgreSQL／Redis URL 略過，未取得本輪真實服務執行通過的證據。
+
+結論：Review Status 為 `RESOLVED`；TASK-009 標記 `DONE`。

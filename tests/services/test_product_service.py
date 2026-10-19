@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
@@ -15,6 +16,7 @@ from src.models.schemas.product import ProductCreateInfo
 from src.models.schemas.product import ProductDeleteInfo
 from src.models.schemas.product import ProductUpdateInfo
 from src.models.schemas.product import ProductDownloadInfo
+from src.repositories.label_cache_repository import LabelCacheRepositoryError
 from src.repositories.product_cache_repository import ProductCacheRepositoryError
 from src.repositories.product_repository import DuplicateProductRecordError
 from src.repositories.product_repository import ProductRepositoryError
@@ -111,6 +113,9 @@ class FakeLabelCache(object):
         }
 
     async def invalidate(self, lease: object) -> None:
+        self.labels = {}
+
+    async def invalidate_after_commit(self) -> None:
         self.labels = {}
 
     @staticmethod
@@ -508,6 +513,126 @@ async def test_add_creates_only_missing_labels_and_preserves_input_order() -> No
     assert len(labels.values) == 3
     assert labels.values[-1].name == "New label"
     assert products.values[0].label_ids == f"1,{labels.values[-1].id},2"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_adds_create_one_shared_label(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class LockedProductCache(FakeProductCache):
+        def __init__(self) -> None:
+            super().__init__()
+            self.mutex = asyncio.Lock()
+
+        @asynccontextmanager
+        async def products_lock(self):
+            async with self.mutex:
+                yield FakeLease()
+
+    class ConcurrentLabelCache(FakeLabelCache):
+        def __init__(self) -> None:
+            super().__init__()
+            self.mutex = asyncio.Lock()
+            self.first_reads = 0
+            self.first_reads_complete = asyncio.Event()
+
+        @asynccontextmanager
+        async def lock(self):
+            async with self.mutex:
+                yield FakeLease()
+
+        async def get(self) -> dict[str, tuple[int, str]] | None:
+            if self.first_reads < 2:
+                self.first_reads += 1
+                snapshot = dict(self.labels)
+                if self.first_reads == 2:
+                    self.first_reads_complete.set()
+                await self.first_reads_complete.wait()
+                return snapshot
+            return await super().get()
+
+    product_timestamps = iter(
+        (1_790_000_000_000_000_000, 1_790_000_000_001_000_000)
+    )
+    monkeypatch.setattr(
+        "src.services.product_service.time.time_ns",
+        lambda: next(product_timestamps),
+    )
+    products = FakeProducts()
+    product_cache = LockedProductCache()
+    labels = FakeLabels()
+    label_cache = ConcurrentLabelCache()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        product_cache,  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
+        label_cache,  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+    info = ProductCreateInfo(
+        name="Product",
+        label_names="Shared label",
+        cost=Decimal("100.00"),
+        price=Decimal("150.00"),
+    )
+
+    await asyncio.gather(
+        service.add(AuthorizationObject(uid="operator"), info),
+        service.add(AuthorizationObject(uid="operator"), info),
+    )
+
+    assert len(labels.values) == 1
+    assert labels.values[0].name == "Shared label"
+    assert len(products.values) == 2
+    assert {product.label_ids for product in products.values} == {
+        str(labels.values[0].id)
+    }
+    assert product_cache.products == products.values
+
+
+@pytest.mark.asyncio
+async def test_new_label_cache_failure_logs_committed_product(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class FailingLabelCache(FakeLabelCache):
+        async def replace(self, labels: list[Label], lease: object) -> None:
+            if labels:
+                raise LabelCacheRepositoryError
+            await super().replace(labels, lease)
+
+    products = FakeProducts()
+    labels = FakeLabels()
+    service = ProductService(
+        object(),  # type: ignore[arg-type]
+        products,  # type: ignore[arg-type]
+        FakeProductCache(),  # type: ignore[arg-type]
+        labels,  # type: ignore[arg-type]
+        FailingLabelCache(),  # type: ignore[arg-type]
+        FakeUsers(),  # type: ignore[arg-type]
+        FakeAuthorization(),  # type: ignore[arg-type]
+    )
+
+    with caplog.at_level("ERROR", logger="src.services.product_service"):
+        with pytest.raises(ProductCacheUnavailableError):
+            await service.add(
+                AuthorizationObject(uid="operator"),
+                ProductCreateInfo(
+                    name="Product",
+                    label_names="New label",
+                    cost=Decimal("100.00"),
+                    price=Decimal("150.00"),
+                ),
+            )
+
+    assert len(labels.values) == 1
+    assert len(products.values) == 1
+    assert any(
+        "committed" in record.message
+        and f"product_id={products.values[0].id}" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.asyncio
