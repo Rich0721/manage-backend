@@ -39,7 +39,7 @@ Flows: Features/Document/flows/04-Sell-Product/01-Sell-Product.mmd、02-Ger-Orde
 | TASK-003 | Order / Stock Repository | ADD / MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 | TASK-004 | Sell / Get Order Service | ADD | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 | TASK-005 | Sell Controller / Dependency / Router | ADD / MODIFY | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
-| TASK-006 | Unit / Integration Tests | ADD | 2026-10-19 | DEVELOPED DONE | 2026-10-19 | 2026-10-19 |
+| TASK-006 | Unit / Integration Tests | ADD | 2026-10-19 | DONE | 2026-10-19 | 2026-10-19 |
 
 ## IV. Requirement Validation 與契約差異
 
