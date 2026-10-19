@@ -2,9 +2,7 @@ import asyncio
 import os
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
-from datetime import date
 from datetime import datetime
-from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
@@ -324,13 +322,17 @@ async def test_sell_product_updates_database_and_cache_atomically() -> None:
         snapshot_before_missing_sale = await redis.get(
             f"{key_prefix}:products:info"
         )
+        before_missing_sale_product = await products.get_by_id(
+            "1790705105002"
+        )
+        assert before_missing_sale_product is not None
         missing_info = SellOrderInfo.model_validate(
             {
                 "totalAmount": 20,
                 "totalDiscount": 15,
                 "orderItems": [
                     {
-                        "productId": "1790705105001",
+                        "productId": "1790705105002",
                         "quantity": 1,
                         "price": 10,
                         "discount": 8,
@@ -366,8 +368,7 @@ async def test_sell_product_updates_database_and_cache_atomically() -> None:
         assert after_missing_sale.updated_uid == "seller"
         after_missing_sale_second = await products.get_by_id("1790705105002")
         assert after_missing_sale_second is not None
-        assert after_missing_sale_second.stock == 3
-        assert after_missing_sale_second.updated_uid == "seller"
+        assert after_missing_sale_second == before_missing_sale_product
 
         failing_service = SellService(
             OrderRepository(pool),  # type: ignore[arg-type]
@@ -597,11 +598,11 @@ async def test_concurrent_sales_and_product_update_preserve_stock() -> None:
         assert product is not None
         assert product.stock == 0
         assert product.updated_uid == "seller"
-        orders = await OrderRepository(pool_a).get_orders(
-            start_date=date.today(),
-            end_date_exclusive=date.today() + timedelta(days=1),
-        )
-        assert len(orders) == 3
+        orders_by_id = [
+            await OrderRepository(pool_a).get_orders(order_id=order_id)
+            for order_id in sorted(order_ids)
+        ]
+        assert all(len(orders) == 1 for orders in orders_by_id)
         cached = await product_cache.get_products()
         assert cached is not None
         assert cached[0].stock == product.stock
